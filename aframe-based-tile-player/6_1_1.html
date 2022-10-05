@@ -8,7 +8,68 @@
 		<title>ball_video</title>
 		
 		<script src="./aframe/dist/aframe-master.js"></script>
+		<script src="edit/editInfo.js"></script>
+		<script>
 
+		function convert_normalized_to_degree(cvp_norm) {
+				return 360*cvp_norm - 180;
+			};
+
+		function convert_normalized_to_radians(cvp_norm) {
+			return 2*Math.PI*cvp_norm - Math.PI;
+		};
+			
+		AFRAME.registerComponent('do-something-on-head-movement', {
+		init: function () {
+			this.tick = AFRAME.utils.throttleTick(this.tick, 10	, this);
+		},
+		tick: function(t,dt){
+			var scene = this.el;
+			var camera = scene.camera;
+
+			var sky_sphere = scene.children[1]; //sky-sphere
+			var camera_reference = scene.children[2]; //camera_reference
+			var sphere_mesh = sky_sphere.object3DMap.mesh;
+
+			const newRaycaster= new THREE.Raycaster();
+			const mouse=new THREE.Vector2(0,0);
+
+			newRaycaster.setFromCamera(mouse, camera);
+
+			let intersection=[];
+
+			//get the head position using raycast from the sphere to the camera
+			sphere_mesh.raycast(newRaycaster, intersection);
+
+			if ( intersection.length > 0 ){
+				var cvp_x_norm = intersection[0].uv.x;
+				var cvp_y_norm = intersection[0].uv.y;
+
+				//values from -180° through +180°
+				var cvp_x_degree = convert_normalized_to_degree(cvp_x_norm); 
+				var cvp_y_degree = convert_normalized_to_degree(cvp_y_norm);
+
+
+				//values from -180° through +180°
+				var cvp_x_radians = convert_normalized_to_radians(cvp_x_norm); 
+				var cvp_y_radians = convert_normalized_to_radians(cvp_y_norm);
+
+
+				// fulfill the sky object with the Head Movement data
+				sky_sphere["head_movement_degree"] = [cvp_x_degree, cvp_y_degree]; 
+				sky_sphere["head_movement_radians"] = [cvp_x_radians, cvp_y_radians];
+
+			}
+
+			
+			// camera_reference.object3D.rotation.y += 0.01;
+			// sky_sphere.object3D.rotation.y+=0.01;
+			
+		}
+		});
+
+		
+		</script>
 		<style>
 			body {
 				background-color: #000000;
@@ -19,7 +80,7 @@
 	
     <body>
 
-		<a-scene>
+		<a-scene do-something-on-head-movement>
 
 			<a-assets>
 			  	<video id="video_0" preload="auto" width="960" height="960" autoplay loop="false" crossOrigin="anonymous" muted></video>
@@ -28,54 +89,75 @@
 				<video id="video_3" preload="auto" width="960" height="960" autoplay loop="false" crossOrigin="anonymous" muted></video>
 				<video id="video_4" preload="auto" width="960" height="960" autoplay loop="false" crossOrigin="anonymous" muted></video>
 				<video id="video_5" preload="auto" width="960" height="960" autoplay loop="false" crossOrigin="anonymous" muted></video>
-				<audio id="audio"></audio>  
+				<audio id="audio"   crossOrigin="anonymous"></audio>  
 			</a-assets>
-	  
-			<a-entity material="shader: flat; src: #video_0"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="480 0 0"
-					  rotation="0 270 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #video_1"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="-480 0 0"
-					  rotation="0 90 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #video_2"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="0 480 0"
-					  rotation="90 0 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #video_3"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="0 -480 0"
-					  rotation="-90 0 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #video_4"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="0 0 -480"
-					  rotation="0 0 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #video_5"
-					  geometry="primitive: plane; width: 960; height: 960;"
-					  position="0 0 480"
-					  rotation="0 180 0"
-					  visible="true">
-			</a-entity>
-			<a-entity material="shader: flat; src: #audio"
-					  geometry="primitive: plane; width: 0; height: 0;"
-					  position="0 0 0"
-					  rotation="0 0 0"
-					  visible="true">
-			</a-entity>
 
+			
+			<a-sky id="sky-sphere" color="#000000" radius="400" opacity= "0" rotation="0 -90 0" animation="property: opacity; from: 0; to:1; loop: 2; dir: alternate; dur:2000; startEvents: fadeEffect"></a-sky>
+
+			<a-entity id="video_camera"
+					  position="0 1.6 0"
+					  material="opacity: 0; transparent: true"
+					  visible="true">
+
+					  
+				<a-entity id="ent_video_0"
+						material="shader: flat; src: #video_0"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="480 0 0"
+						rotation="0 270 0"
+						visible="true">
+				</a-entity>
+				<a-entity id="ent_video_1"
+						material="shader: flat; src: #video_1"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="-480 0 0"
+						rotation="0 90 0"
+						visible="true">
+				</a-entity>
+				<a-entity id="ent_video_2"
+						material="shader: flat; src: #video_2"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="0 480 0"
+						rotation="90 0 0"
+						visible="true">
+				</a-entity>
+				<a-entity id="ent_video_3"
+						material="shader: flat; src: #video_3"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="0 -480 0"
+						rotation="-90 0 0"
+						visible="true">
+				</a-entity>
+				<a-entity id="ent_video_4"
+						material="shader: flat; src: #video_4"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="0 0 -480"
+						rotation="0 0 0"
+						visible="true">
+				</a-entity>
+				<a-entity id="ent_video_5"
+						material="shader: flat; src: #video_5"
+						geometry="primitive: plane; width: 960; height: 960;"
+						position="0 0 480"
+						rotation="0 180 0"
+						visible="true">
+				</a-entity>
+<!-- 	 			<a-entity material="shader: flat; src: #audio"
+						geometry="primitive: plane; width: 1; height: 1;"
+						position="0 0 0"
+						rotation="0 0 0"
+						visible="true">
+				</a-entity> -->
+
+			</a-entity>
+			
+			
 		</a-scene>
-        
+
 	</body>
+
+	
+
 	
 </html>

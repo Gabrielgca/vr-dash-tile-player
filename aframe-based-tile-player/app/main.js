@@ -1,7 +1,6 @@
 var app = angular.module('DashPlayer', ['angular-flot']);
 
 app.controller('DashController', ['$scope','$interval', function ($scope, $interval) {
-
     $interval(function () {}, 1);
 
     //// Global variables for storage
@@ -34,10 +33,10 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
 
     $scope.selectedItem = {  // Save the selected media source
         type:"json",
-        value:"http://115.156.159.94:8800/CMPVP907/aframeVP907.json"
+        value:"https://192.168.15.92/CQ07/aframeVP907.json"
     };
     $scope.optionButton = "Show Options";  // Save the state of option button
-    $scope.selectedRule = "FOVRule";  // Save the selected media source
+    $scope.selectedRule = "LowestBitrateRule";  // Save the selected media source
     $scope.stats = [];  // Save all the stats need to put on the charts
     $scope.chartData_quality = [];  // Save the qualtiy data need to put on the charts
     $scope.chartData_buffer = [];  // Save the buffer data need to put on the charts
@@ -157,7 +156,8 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
             url:"https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd"
         }
     ];
-    $scope.rules = ["FOVRule", "HighestBitrateRule", "FOVContentRule", "DefaultRule"];  // [For seeting the ABR rule] All the available preset ABR rules
+    //IMPORTANT - List of ABR rules
+    $scope.rules = ["FOVRule", "HighestBitrateRule", "LowestBitrateRule", "FOVContentRule", "DefaultRule"];  // [For seeting the ABR rule] All the available preset ABR rules
     $scope.chartOptions = {  // [For printing the chart] Set up the style of the charts
         legend: {
             labelBoxBorderColor: '#ffffff',
@@ -211,6 +211,7 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
     };
     $scope.maxPointsToChart = 30;  // [For printing the chart] Set the maximum of the points printed on the charts
     $scope.IntervalOfSetNormalizedTime = 10;  // [For setting interval] Set the fastest mediaplayer's timeline as the normalized time
+    $scope.IntervalOfDynamicEdit = 10; // [For setting interval] Set the same interval as the normalized time so that it can be sync
     $scope.IntervalOfComputetotalThroughput = 1000;  // [For setting interval] Compute total throughput according to recent HTTP requests
     $scope.IntervalOfComputeQoE = 1000;  // [For setting interval] Compute QoE
     $scope.IntervalOfUpdateStats = 100;  // [For setting interval] Show the data in monitor
@@ -456,6 +457,7 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
             for (let j = 0; j < $scope.contents.row; j++) {
                 for (let k = 0; k < $scope.contents.col; k++) {
                     video = document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + [i * $scope.contents.row * $scope.contents.col + j * $scope.contents.col + k]);
+                    //IMPORTANT - Create one player for each face of the cube and each tile of the face.
                     $scope.players[$scope.playerCount] = new dashjs.MediaPlayer().create();
                     url = $scope.contents.baseUrl + $scope.contents.tiles[i][j][k].src;
                     $scope.buffer_empty_flag[$scope.playerCount] = true;
@@ -495,6 +497,8 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
                         }
                     });
 
+                    //IMPORTANT - Adds the ABR algorithm to be used
+                    // More info in https://cdn.dashjs.org/latest/jsdoc/module-MediaPlayer.html
                     // Add my custom quality switch rule, look at [].js to know more about the structure of a custom rule
                     switch ($scope.selectedRule) {
                         case "FOVRule":
@@ -506,6 +510,9 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
                         case "HighestBitrateRule":
                             $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'HighestBitrateRule', HighestBitrateRule);
                             break;
+                        case "LowestBitrateRule":
+                            $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'LowestBitrateRule', LowestBitrateRule);
+                            break;                            
                         case "FOVContentRule":
                             $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'FOVContentRule', FOVContentRule);
                             break;
@@ -582,10 +589,16 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
         // Capture the pictures from mediaplayers
         setInterval(function () {
             for (let i = 0; i < $scope.playerCount; i++) {
-                document.getElementById("capture_" + i).getContext('2d').drawImage(document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + i), 0, 0, $scope.drawmycanvas.width, $scope.drawmycanvas.height);
+                let capture_face = document.getElementById("capture_" + i);
+                if (capture_face)
+                    document.getElementById("capture_" + i).getContext('2d').drawImage(document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + i), 0, 0, $scope.drawmycanvas.width, $scope.drawmycanvas.height);
                 // img.src = canvas.toDataURL("image/png");
             }
         }, $scope.IntervalOfCaptures);
+
+
+        setInterval(dynamicEditClass, $scope.IntervalOfDynamicEdit);
+        
         document.getElementById('Load').style = "display: none;";
         document.getElementById('Play').style = "display: inline;";
     };

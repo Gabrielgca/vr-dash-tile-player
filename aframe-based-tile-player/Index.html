@@ -29,10 +29,13 @@
 		
 		<script src="./dash.js/dist/dash.all.debug.js"></script>
 		<script src="app/main.js"></script>
+		<script src="edit/editInfo.js"></script>
+		<script src="edit/dynamicEdit.js"></script>
 
 		<script src="FOVRule.js" class="code"></script>
 		<script src="MyThroughputRule.js" class="code"></script>
 		<script src="HighestBitrateRule.js" class="code"></script>
+		<script src="LowestBitrateRule.js" class="code"></script>
 		<script src="FOVContentRule.js" class="code"></script>
 
 		<script>
@@ -93,13 +96,17 @@
 							<div class="options-item-body">
 								<div class="sub-options-item-body">
 									<label data-toggle="tooltip" data-placement="right">
-										<input id="FOVRule" type="radio" autocomplete="off" checked="checked" ng-click="changeABRStrategy('FOVRule')">
+										<input id="FOVRule" type="radio" autocomplete="off" ng-click="changeABRStrategy('FOVRule')">
 										FOVRule
 									</label>
 									<label data-toggle="tooltip" data-placement="right">
 										<input id="HighestBitrateRule" type="radio"  autocomplete="off" ng-click="changeABRStrategy('HighestBitrateRule')">
 										HighestBitrateRule
 									</label>
+									<label data-toggle="tooltip" data-placement="right">
+										<input id="LowestBitrateRule" type="radio"  autocomplete="off" checked="checked" ng-click="changeABRStrategy('LowestBitrateRule')">
+										LowestBitrateRule
+									</label>									
 									<label data-toggle="tooltip" data-placement="right">
 										<input id="FOVContentRule" type="radio" autocomplete="off"  ng-click="changeABRStrategy('FOVContentRule')">
 										FOVContentRule
@@ -116,7 +123,7 @@
 			</div>
 
 			<div class="row">
-				<div id="videoContainer=" style="background-color:#3a3d42;width:1030px; height:530px;float:left;">
+				<div id="videoContainer" style="background-color:#3a3d42;width:1030px; height:530px;float:left;">
 						<iframe frameborder="0" scrolling="no" id="frame" onload="this.width=1000; this.height=500"></iframe>
 				</div>
 				<div class="tabs-section" style="width:calc(100% - 1050px);float:left;margin-left:20px;">
@@ -153,7 +160,7 @@
 						</div>
 					</div>
 				</div>
-				<div class="tabs-section" style="width:calc(100% - 1050px);float:left;margin-left:20px;margin-top: 10px">
+<!-- 				<div class="tabs-section" style="width:calc(100% - 1050px);float:left;margin-left:20px;margin-top: 10px">
 					<table class="table table-striped" style="border: 3px solid #136bfb;padding-left: 5px;padding-right: 5px;text-align: center;">
 						<thhead><tr>
 							<th style="text-align: center;">video_0</th>
@@ -182,7 +189,7 @@
 						</tr>
 						</tbody>
 					</table>
-				</div>
+				</div> -->
 			</div>
 
 			<div class="row" style="background-color: #ffffff">
@@ -247,6 +254,7 @@
 			</div>
 
 		</div>
+
 	</body>
 	
 </html>
