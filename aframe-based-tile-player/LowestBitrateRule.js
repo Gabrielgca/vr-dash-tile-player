@@ -5,6 +5,8 @@ function LowestBitrateRuleClass() {
 
     let factory = dashjs.FactoryMaker;
     let SwitchRequest = factory.getClassFactoryByName('SwitchRequest');
+    let DashMetrics = factory.getSingletonFactoryByName('DashMetrics');
+    let StreamController = factory.getSingletonFactoryByName('StreamController');
     let context = this.context;
     let instance;
 
@@ -13,6 +15,8 @@ function LowestBitrateRuleClass() {
 
     // Always select the lowest bitrate
     function getMaxIndex(rulesContext) {
+        //console.log("rulesContext: ", rulesContext);
+        //console.log("rulesContext.getMediaInfo(): ", rulesContext.getMediaInfo());
         const switchRequest = SwitchRequest(context).create();
 
         if (!rulesContext || !rulesContext.hasOwnProperty('getMediaInfo') || !rulesContext.hasOwnProperty('getAbrController')) {
@@ -22,6 +26,10 @@ function LowestBitrateRuleClass() {
         const mediaType = rulesContext.getMediaInfo().type;
         const mediaInfo = rulesContext.getMediaInfo();
         const abrController = rulesContext.getAbrController();
+        let dashMetrics = DashMetrics(context).getInstance();
+        let streamController = StreamController(context).getInstance();
+
+        console.log("streamController: ", streamController);
 
         if (mediaType != "video") {  // Default settings for audio
             return switchRequest;           
@@ -43,7 +51,7 @@ function LowestBitrateRuleClass() {
                 tag = i;
             }
         }
-        switchRequest.quality = 1;
+        switchRequest.quality = 5;
 
         return switchRequest;
     }

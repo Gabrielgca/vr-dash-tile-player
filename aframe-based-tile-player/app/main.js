@@ -1,7 +1,7 @@
 var app = angular.module('DashPlayer', ['angular-flot']);
 
 app.controller('DashController', ['$scope','$interval', function ($scope, $interval) {
-    $interval(function () {}, 1);
+    //$interval(function () {}, 1);
 
     //// Global variables for storage
     $scope.players = [];  // Container for players, which is easy for us to operate in them.
@@ -14,6 +14,13 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
     $scope.totalQOE = 0;  // Compute the QoE considering all playing tiles
     $scope.viewerQOE = 0;  // Compute the QoE considering the tiles in FOV
     $scope.contentQOE = 0;  // Compute the QoE considering the tiles in FOV with contents as well
+
+    $scope.player_ready = 0;
+
+    $scope.auto_play_vr = true; // Set to enter automatically to VR mode when the the video is ready
+
+    $scope.json_output = [];
+    $scope.download_started = false;
 
     $scope.normalizedTime = 0;  // Set the fastest mediaplayer's timeline as the normalized time
     $scope.totalThroughput = 0;  // Data from monitor
@@ -441,7 +448,111 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
             if ($scope.contents.audio && $scope.contents.audio != "" && $scope.buffer_empty_flag[$scope.playerCount] == true) {
                 return;
             }
+
+            if ($scope.player_ready == 6){
+                $scope.play_all();
+            }
+ 
+        }
+    }
+
+    function can_play_event (e) {
+        console.log(e);
+        console.log("CAN PLAY PLAYER");
+        console.log($scope.player_ready++);
+        if ($scope.player_ready == 6){
+            console.log("START ALL PLAYERS")
             $scope.play_all();
+
+            console.log(e);
+            //AUTO-PLAY
+            if($scope.auto_play_vr)
+            {
+                console.log("AUTO PLAY VR");
+                document.getElementById('frame').contentWindow.document.querySelector('a-scene').enterVR();
+            }
+        }
+    }
+
+    function download_csv(e) {
+        console.log(e);
+        console.log("END OS PLAYBACK REACHED!!")
+        console.log("DOWNLOAD CSV WAS TRIGGERED!!!")
+        // var json_pre = '[{"Id":1,"UserName":"Sam Smith"},{"Id":2,"UserName":"Fred Frankly"},{"Id":1,"UserName":"Zachary Zupers"}]';;
+        console.log("$scope.json_output: ", $scope.json_output);
+        var json_pre = $scope.json_output;
+        var json = json_pre;
+        if (!$scope.download_started)
+        {
+            console.log("downloading CSV...")
+            var csv = JSON2CSV(json, true);
+            var downloadLink = document.createElement("a");
+            var blob = new Blob(["\ufeff", csv]);
+            var url = URL.createObjectURL(blob);
+    
+            downloadLink.id = "download_csv";
+            downloadLink.href = url;
+            downloadLink.download = "data.csv";
+        
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            $scope.download_started = true;
+        }
+
+
+        function JSON2CSV(objArray, header = false) {
+            var array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+            var str = '';
+            var line = '';
+
+            if (header)
+            {
+                head = objArray[0];
+                for (var key in head){
+
+                    str += key + ',';
+                }
+                str = str.slice(0, -1);
+                str += '\r\n';
+            }
+
+            if ($("#labels").is(':checked')) {
+                var head = array[0];
+                if ($("#quote").is(':checked')) {
+                    for (var index in array[0]) {
+                        var value = index + "";
+                        line += '"' + value.replace(/"/g, '""') + '",';
+                    }
+                } else {
+                    for (var index in array[0]) {
+                        line += index + ',';
+                    }
+                }
+        
+                line = line.slice(0, -1);
+                str += line + '\r\n';
+            }
+        
+            for (var i = 0; i < array.length; i++) {
+                var line = '';
+        
+                if ($("#quote").is(':checked')) {
+                    for (var index in array[i]) {
+                        var value = array[i][index] + "";
+                        line += '"' + value.replace(/"/g, '""') + '",';
+                    }
+                } else {
+                    for (var index in array[i]) {
+                        line += array[i][index] + ',';
+                    }
+                }
+        
+                line = line.slice(0, -1);
+                str += line + '\r\n';
+            }
+            return str;
         }
     }
 
@@ -456,6 +567,7 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
         for (let i = 0; i < $scope.contents.face; i++) {
             for (let j = 0; j < $scope.contents.row; j++) {
                 for (let k = 0; k < $scope.contents.col; k++) {
+                    //if (i != 4 && i != 1) continue;
                     video = document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + [i * $scope.contents.row * $scope.contents.col + j * $scope.contents.col + k]);
                     //IMPORTANT - Create one player for each face of the cube and each tile of the face.
                     $scope.players[$scope.playerCount] = new dashjs.MediaPlayer().create();
@@ -531,6 +643,9 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
                     $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["BUFFER_EMPTY"], buffer_empty_event);
                     $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["BUFFER_LOADED"], buffer_loaded_event);
 
+                    $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["CAN_PLAY"], can_play_event);
+                    $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], download_csv);
+
                     // Initializing
                     $scope.players[$scope.playerCount].initialize(video, url, false);
                     $scope.playerBufferLength[$scope.playerCount] = $scope.players[$scope.playerCount].getBufferLength();
@@ -577,24 +692,25 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
 
         $scope.startupTime = new Date().getTime();
         // Set the fastest mediaplayer's timeline as the normalized time
-        setInterval(setNormalizedTime, $scope.IntervalOfSetNormalizedTime);
+        requestAnimationFrame(setNormalizedTime);
+        //setInterval(setNormalizedTime, $scope.IntervalOfSetNormalizedTime);
         // Compute total throughput according to recent HTTP requests
-        setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
+        //setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
         // Compute QoE
-        setInterval(computeQoE, $scope.IntervalOfComputeQoE);
-        // Show the data in monitor
-        setInterval(updateStats, $scope.IntervalOfUpdateStats);
-        // Show the data in figures
-        setInterval(updateFigures, $scope.IntervalOfUpdateFigures);
-        // Capture the pictures from mediaplayers
-        setInterval(function () {
-            for (let i = 0; i < $scope.playerCount; i++) {
-                let capture_face = document.getElementById("capture_" + i);
-                if (capture_face)
-                    document.getElementById("capture_" + i).getContext('2d').drawImage(document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + i), 0, 0, $scope.drawmycanvas.width, $scope.drawmycanvas.height);
-                // img.src = canvas.toDataURL("image/png");
-            }
-        }, $scope.IntervalOfCaptures);
+        //setInterval(computeQoE, $scope.IntervalOfComputeQoE);
+        // // Show the data in monitor
+        //setInterval(updateStats, $scope.IntervalOfUpdateStats);
+        // // Show the data in figures
+        // setInterval(updateFigures, $scope.IntervalOfUpdateFigures);
+        // //Capture the pictures from mediaplayers
+        // setInterval(function () {
+        //     for (let i = 0; i < $scope.playerCount; i++) {
+        //         let capture_face = document.getElementById("capture_" + i);
+        //         if (capture_face)
+        //             document.getElementById("capture_" + i).getContext('2d').drawImage(document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + i), 0, 0, $scope.drawmycanvas.width, $scope.drawmycanvas.height);
+        //         // img.src = canvas.toDataURL("image/png");
+        //     }
+        // }, $scope.IntervalOfCaptures);
 
 
         setInterval(dynamicEditClass, $scope.IntervalOfDynamicEdit);
@@ -616,6 +732,8 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
                 $scope.normalizedTime = $scope.players[$scope.playerCount].time();
             }
         }
+
+        requestAnimationFrame(setNormalizedTime);
     }
 
     // Compute total throughput according to recent HTTP requests (Total data in ONE second)
@@ -811,10 +929,10 @@ app.controller('DashController', ['$scope','$interval', function ($scope, $inter
     }
 
 
-    //// Enable the FOV event listener in iframe
+   /*  //// Enable the FOV event listener in iframe
     document.getElementById('frame').onload = function () {
         document.getElementById('frame').contentDocument.addEventListener( 'pointerdown', onPointerDown );
-    }
+    } */
 
     function onPointerDown( event ) {
         if ( event.isPrimary === false ) return;

@@ -5,11 +5,10 @@ const GRADUAL_EDIT = "gradual";
 
 const EDIT_TIME = 2; //seconds
 const FADE_TIME = 1; //seconds after edit started
-const ROTATION_SPEED = 0.01; //radians per render
+const ROTATION_SPEED = 0.005; //radians per 10 miliseconds
 const OPACITY_THRESHOLD = 0.9; // opacity that will start the snapcut on the fade rotation edit
-
+const ENABLE_EDIT = true;
 const editEditInfoJSON = EditInfoJSON.edit;
-
 
 
 var sphere_reference, camera_reference;
@@ -25,99 +24,135 @@ let last_timestamp_with_edit = 0;
     
 function dynamicEditClass () {
         
-    [sphere_reference, camera_reference ] = getIframeEntities('frame');
-
-
-    var appElement = document.querySelector('[ng-controller=DashController]');
-    var $scope = angular.element(appElement).scope();
-    var currentTime = $scope.normalizedTime;
-    var normCurrentTime = Math.ceil(currentTime);
-    ////console.log("FROM DYNAMIC EDIT")
-    let CvpDegree = sphere_reference["head_movement_degree"];
-    let CvpRadians = sphere_reference["head_movement_radians"];
-    if (CvpRadians != undefined){
-
-        // Only use the X axis for the edit
-        CvpXRadians = CvpRadians[0];
-
-        let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
-
+    if (ENABLE_EDIT){
+        [sphere_reference, camera_reference ] = getIframeEntities('frame');
+    
+        var appElement = document.querySelector('[ng-controller=DashController]');
+        var $scope = angular.element(appElement).scope();
+        var currentTime = $scope.normalizedTime;
+        var normCurrentTime = Math.ceil(currentTime);
+        ////console.log("FROM DYNAMIC EDIT")
+        let CvpDegree = sphere_reference["head_movement_degree"];
+        let CvpRadians = sphere_reference["head_movement_radians"];
         
+        let hasEditScheduledValue = false;
+        let editHappenedValue = false;
+        let radiansRotationValue = 0;
+        let editTypeValue = "null";
 
-        ////console.log(CvpRadians);
-        //Fade Effect Showcase
-        if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == GRADUAL_EDIT){
-            let timeStartGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME);
-            let timeStopGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] + EDIT_TIME);
+        if (CvpRadians != undefined){
+    
+            // Only use the X axis for the edit
+            CvpXRadians = CvpRadians[0];
+    
+            let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
+    
+            
+    
+            ////console.log(CvpRadians);
+            //Fade Effect Showcase
+            if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == GRADUAL_EDIT){
 
-            let timeStartFade = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME + FADE_TIME);
-            
-            
-            if (timeStartGradualRotation == normCurrentTime){
-                //console.log("START ROTATION");
                 
-                [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(CvpXRadians);
+                let timeStartGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME);
+                let timeStopGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] + EDIT_TIME);
+    
+                let timeStartFade = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME + FADE_TIME);
                 
-                // if the RoI is under 30° from the current center of the viewport, it is not needed to do an edit
-                if (dist_nearest_roi_gradual >= 0.5235){
-                    isRotating = true;
+                
+                if (timeStartGradualRotation == normCurrentTime){
+                    //console.log("START ROTATION");
+                    
+                    [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(CvpXRadians);
+                    
+                    // if the RoI is under 30° from the current center of the viewport, it is not needed to do an edit
+                    if (dist_nearest_roi_gradual >= 0.5235){
+                        isRotating = true;
+                    }
+                    else {
+                        doIt = false;
+                        doFade = false;
+                    }
                 }
-                else {
-                    doIt = false;
+                if (timeStopGradualRotation == normCurrentTime){
+                    //console.log("STOP ROTATION");
+                    next_edit++;
+                    doIt = true;
+                    doFade = true;
+                    isRotating = false;
+                }
+    
+                if (timeStartFade == normCurrentTime && doFade){
                     doFade = false;
+                    //console.log("START FADE");
+                    sphere_reference.emit('fadeEffect');
                 }
-            }
-            if (timeStopGradualRotation == normCurrentTime){
-                //console.log("STOP ROTATION");
-                next_edit++;
-                doIt = true;
-                doFade = true;
-                isRotating = false;
-            }
+                //console.log(sphereOpacity, doIt);
+                if (sphereOpacity >= OPACITY_THRESHOLD && doIt){
+                    //console.log("START SNAPCUT");
+                    doIt = false;
+                    let snapCutRotation = handleSnapCut(CvpXRadians);
 
-            if (timeStartFade == normCurrentTime && doFade){
-                doFade = false;
-                //console.log("START FADE");
-                sphere_reference.emit('fadeEffect');
-            }
-            //console.log(sphereOpacity, doIt);
-            if (sphereOpacity >= OPACITY_THRESHOLD && doIt){
-                //console.log("START SNAPCUT");
-                doIt = false;
-                handleSnapCut(CvpXRadians);
-            }
-
-            if (isRotating){
-                if (direction > 0)
-                {
-                    //console.log("positive")
-                    camera_reference.object3D.rotation.y += ROTATION_SPEED;
-                    sphere_reference.object3D.rotation.y += ROTATION_SPEED;
+                    if (snapCutRotation != undefined){
+                        radiansRotationValue = snapCutRotation;
+                        editHappenedValue = true;
+                    }
                 }
-                else {
-                    //console.log("negative")
-                    camera_reference.object3D.rotation.y -= ROTATION_SPEED;
-                    sphere_reference.object3D.rotation.y -= ROTATION_SPEED;
-                }
-
-            }
-        }
     
+                if (isRotating){
+                    editTypeValue = GRADUAL_EDIT;
+                    hasEditScheduledValue = true;
+                    if (direction > 0)
+                    {
+                        //console.log("positive")
+                        camera_reference.object3D.rotation.y += ROTATION_SPEED;
+                        sphere_reference.object3D.rotation.y += ROTATION_SPEED;
+                    }
+                    else {
+                        //console.log("negative")
+                        camera_reference.object3D.rotation.y -= ROTATION_SPEED;
+                        sphere_reference.object3D.rotation.y -= ROTATION_SPEED;
+                    }
+    
+                }
+            }
         
-        // Check if there is another edit to be done, if the current frame has an edit on the ediInfo file 
-        // and if the last frame already had an edit (this is needed because the last frame is redrawn when the edit happens)
-        if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == INSTANT_EDIT)
-        {
-            if (editEditInfoJSON[next_edit]["timestamp"] == normCurrentTime && last_timestamp_with_edit != normCurrentTime){
-                handleSnapCut(CvpXRadians)
-                last_timestamp_with_edit = normCurrentTime;
-                next_edit++;
-            }
-        }
-    }
-    
+            
+            // Check if there is another edit to be done, if the current frame has an edit on the ediInfo file 
+            // and if the last frame already had an edit (this is needed because the last frame is redrawn when the edit happens)
+            if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == INSTANT_EDIT)
+            {
+                if (editEditInfoJSON[next_edit]["timestamp"] == normCurrentTime && last_timestamp_with_edit != normCurrentTime){
+                    editTypeValue = INSTANT_EDIT;
+                    hasEditScheduledValue = true;
 
-    //face_4.object3D.translateY(0.01);
+                    let snapCutRotation = handleSnapCut(CvpXRadians);
+                    last_timestamp_with_edit = normCurrentTime;
+                    if (snapCutRotation != undefined){
+                        radiansRotationValue = snapCutRotation;
+                        editHappenedValue = true;
+                    }
+                    next_edit++;
+                }
+            }
+
+            let frame_data = {
+                frame: Math.ceil(currentTime),
+                yaw: Number.parseFloat(CvpRadians[0]).toFixed(4),
+                pitch: Number.parseFloat(CvpRadians[1]).toFixed(4),
+                hasEditScheduled: hasEditScheduledValue,
+                editHappened: editHappenedValue,
+                radiansRotation: radiansRotationValue,
+                editType: editTypeValue
+            }
+            
+            $scope.json_output.push(frame_data);
+        }
+
+
+
+        //face_4.object3D.translateY(0.01);
+    }
     
 }
 
@@ -158,6 +193,8 @@ function handleSnapCut(CvpXRadians)
         //console.log("Distance lower than 30°")
         doIt = false;
     }
+
+    return dist_nearest_roi;
 
 }
 

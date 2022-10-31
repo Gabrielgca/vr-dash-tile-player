@@ -21,24 +21,24 @@ const EditInfoJSON =
                                                 ]     
                         },
                         {
-                                "timestamp" : 20,
-                                "type": "gradual",
-                                "region_of_interest": [                                                                 
-                                                        {
-                                                                "rank": 1,
-                                                                "ROI_theta": 0.745
-                                                        }
-                                                        ]     
+                        "timestamp" : 20,
+                        "type": "gradual",
+                        "region_of_interest": [                                                                 
+                                                {
+                                                        "rank": 1,
+                                                        "ROI_theta": 0.745
+                                                }
+                                                ]     
                                 },
                         {
-                                "timestamp" : 25,
-                                "type": "gradual",
-                                "region_of_interest": [                                                                 
-                                                        {
-                                                                "rank": 1,
-                                                                "ROI_theta": 0.2
-                                                        }
-                                                        ]     
+                        "timestamp" : 25,
+                        "type": "instant",
+                        "region_of_interest": [                                                                 
+                                                {
+                                                        "rank": 1,
+                                                        "ROI_theta": 0.2
+                                                }
+                                                ]     
                                 }
         ]
 }
