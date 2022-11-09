@@ -18,6 +18,45 @@
 		function convert_normalized_to_radians(cvp_norm) {
 			return 2*Math.PI*cvp_norm - Math.PI;
 		};
+
+		var faceStructure = {
+			ent_video_0: [  new THREE.Vector3( 960,  960, -960),   new THREE.Vector3(960,  960,    0),
+							new THREE.Vector3( 960,  960,  960),   new THREE.Vector3(960,    0,  960),
+							new THREE.Vector3( 960, -960,  960),   new THREE.Vector3(960, -960,    0),
+							new THREE.Vector3( 960, -960, -960),   new THREE.Vector3(960,    0, -960),
+							new THREE.Vector3( 960 ,   0,   0)],
+							
+     
+			ent_video_1: [  new THREE.Vector3(-960,  960, -960),   new THREE.Vector3(-960,  960,    0),
+							new THREE.Vector3(-960,  960,  960),   new THREE.Vector3(-960,    0,  960),
+							new THREE.Vector3(-960, -960,  960),   new THREE.Vector3(-960, -960,    0),
+							new THREE.Vector3(-960, -960, -960),   new THREE.Vector3(-960,    0, -960),
+							new THREE.Vector3(-960 ,   0,   0)],
+     
+			ent_video_2: [  new THREE.Vector3(-960,  960, -960),   new THREE.Vector3(   0,    960, -960),
+							new THREE.Vector3( 960,  960, -960),   new THREE.Vector3( 960,    960,    0),
+							new THREE.Vector3( 960,  960,  960),   new THREE.Vector3(   0,    960,  960),
+							new THREE.Vector3(-960,  960,  960),   new THREE.Vector3(-960,    960,    0),
+							new THREE.Vector3(   0, 960,   0)],
+     
+			ent_video_3: [  new THREE.Vector3(-960,  -960, -960),  new THREE.Vector3(   0,   -960, -960),
+							new THREE.Vector3( 960,  -960, -960),  new THREE.Vector3( 960,   -960,    0),
+							new THREE.Vector3( 960,  -960,  960),  new THREE.Vector3(   0,   -960,  960),
+							new THREE.Vector3(-960,  -960,  960),  new THREE.Vector3(-960,   -960,    0),
+							new THREE.Vector3(   0,  -960,   0)],
+    
+			ent_video_4: [  new THREE.Vector3(-960,  960, -960),   new THREE.Vector3(   0,   960,  -960),
+							new THREE.Vector3( 960,  960, -960),   new THREE.Vector3( 960,     0,  -960),
+							new THREE.Vector3( 960, -960, -960),   new THREE.Vector3(   0,  -960,  -960),
+							new THREE.Vector3(-960, -960, -960),   new THREE.Vector3(-960,     0,  -960),
+							new THREE.Vector3(   0,    0, -960)],
+     
+			ent_video_5: [  new THREE.Vector3(-960,  960, 960),    new THREE.Vector3(   0,   960,   960),
+							new THREE.Vector3( 960,  960, 960),    new THREE.Vector3( 960,     0,   960),
+							new THREE.Vector3( 960, -960, 960),    new THREE.Vector3(   0,  -960,   960),
+							new THREE.Vector3(-960, -960, 960),    new THREE.Vector3(-960,     0,   960),
+							new THREE.Vector3(   0,    0, 960)],
+		}
 			
 		AFRAME.registerComponent('do-something-on-head-movement', {
 		init: function () {
@@ -59,6 +98,28 @@
 				sky_sphere["head_movement_degree"] = [cvp_x_degree, cvp_y_degree]; 
 				sky_sphere["head_movement_radians"] = [cvp_x_radians, cvp_y_radians];
 
+			}
+
+			var visibleObjects = {};
+			if (camera) {
+				camera.updateMatrix();
+  				camera.updateMatrixWorld();
+			    var frustum = new THREE.Frustum();
+
+				frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));  
+				console.log("-----------------------------------------------------")
+				let visible = false;
+				for (var face in faceStructure) {
+					for (var position = 0; position < faceStructure[face].length; position++){
+						if (frustum.containsPoint( faceStructure[face][position] )){
+							visibleObjects[face] = {visible: true}
+							visible = true;
+							break;
+						}
+					}
+				}
+				console.log(visibleObjects);
+				
 			}
 
 			
