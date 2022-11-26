@@ -8,7 +8,7 @@ const FADE_TIME = 1; //seconds after edit started
 const ROTATION_SPEED = 0.005; //radians per 10 miliseconds
 const OPACITY_THRESHOLD = 0.9; // opacity that will start the snapcut on the fade rotation edit
 const ENABLE_EDIT = true;
-const editEditInfoJSON = EditInfoJSON.edit;
+
 
 
 var sphere_reference, camera_reference;
@@ -17,7 +17,7 @@ var doFade = true;
 var dist_nearest_roi_gradual;
 var direction;
 var isRotating = false;
-
+var editEditInfoJSON;
 let next_edit = 0;
 let CvpXRadians, CvpYRadians;
 let last_timestamp_with_edit = 0;
@@ -29,12 +29,13 @@ function dynamicEditClass () {
     
         var appElement = document.querySelector('[ng-controller=DashController]');
         var $scope = angular.element(appElement).scope();
+        editEditInfoJSON = $scope.contents.edits.edit;
         var currentTime = $scope.normalizedTime;
         var normCurrentTime = Math.ceil(currentTime);
         ////console.log("FROM DYNAMIC EDIT")
         let CvpDegree = sphere_reference["head_movement_degree"];
         let CvpRadians = sphere_reference["head_movement_radians"];
-        
+
         let hasEditScheduledValue = false;
         let editHappenedValue = false;
         let radiansRotationValue = 0;
@@ -159,18 +160,31 @@ function dynamicEditClass () {
 
 function getIframeEntities(frameId) {
     var frameObj = document.getElementById(frameId);
-    var camera_reference = frameObj.contentWindow.document.querySelector('#video_camera');
-    var sphere_reference = frameObj.contentWindow.document.querySelector('#sky-sphere'); 
-
-    return [sphere_reference, camera_reference];
+    if (frameObj){
+        var camera_reference = frameObj.contentWindow.document.querySelector('#video_camera');
+        var sphere_reference = frameObj.contentWindow.document.querySelector('#sky-sphere'); 
+        return [sphere_reference, camera_reference];
+    }
+    return;
     }
 
 
 function fireRotation (roi_radians)
     {
-        //console.log("fire Rotation!!");
-        camera_reference.object3D.rotation.y += roi_radians;
-        sphere_reference.object3D.rotation.y += roi_radians;
+        const quaternion = new THREE.Quaternion();
+        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), roi_radians );
+        // console.log("fire Rotation!!");
+        const quaternionFace = new THREE.Quaternion();
+        quaternionFace.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), roi_radians );
+
+        for (var face in camera_reference.faceStructure) {
+            for (var position = 0; position < camera_reference.faceStructure[face].length; position++){
+                camera_reference.faceStructure[face][position].applyQuaternion(quaternionFace);
+                
+            }
+        }
+        camera_reference.object3D.quaternion.multiply(quaternion);
+        sphere_reference.object3D.quaternion.multiply(quaternion);
     }
 
 
