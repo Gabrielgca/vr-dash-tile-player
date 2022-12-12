@@ -84,7 +84,7 @@ app.controller('HomeController', function($scope) {
           value:"https://192.168.15.92/CQ07/aframeVP907.json"
       };
       $scope.optionButton = "Show Options";  // Save the state of option button
-      $scope.selectedRule = "LowestBitrateRule";  // Save the selected media source
+      $scope.selectedRule = "FOVEditRule";  // Save the selected media source
       $scope.stats = [];  // Save all the stats need to put on the charts
       $scope.chartData_quality = [];  // Save the qualtiy data need to put on the charts
       $scope.chartData_buffer = [];  // Save the buffer data need to put on the charts
@@ -205,7 +205,7 @@ app.controller('HomeController', function($scope) {
           }
       ];
       //IMPORTANT - List of ABR rules
-      $scope.rules = ["FOVRule", "HighestBitrateRule", "LowestBitrateRule", "FOVContentRule", "DefaultRule"];  // [For seeting the ABR rule] All the available preset ABR rules
+      $scope.rules = ["FOVRule", "HighestBitrateRule", "LowestBitrateRule", "FOVContentRule", "FOVEditRule", "DefaultRule"];  // [For seeting the ABR rule] All the available preset ABR rules
       $scope.chartOptions = {  // [For printing the chart] Set up the style of the charts
           legend: {
               labelBoxBorderColor: '#ffffff',
@@ -265,7 +265,154 @@ app.controller('HomeController', function($scope) {
       $scope.IntervalOfUpdateStats = 100;  // [For setting interval] Show the data in monitor
       $scope.IntervalOfUpdateFigures = 1000;  // [For setting interval] Show the data in figures
       $scope.IntervalOfCaptures = 500;  // [For setting interval] Capture the pictures from mediaplayers
-  
+
+      $scope.center_viewport_x = []; // Array for arrays with x axis center of the viewport with sample size given in viewportUtils.js
+      $scope.center_viewport_y = []; // Array for arrays with y axis center of the viewport with sample size given in viewportUtils.js
+      $scope.time_array = []; // time Array with the last times with the sample size given in the viewportUtils.js
+      $scope.current_center_viewport_x = 0;
+      $scope.current_center_viewport_y = 0;
+
+      $scope.predict_center_viewport = function (prediction_seconds) {
+
+        //consol.log("ENTERING PREDICTION")
+        //############## LINEAR REGRESSION ##############//
+            
+        function linear_function (a, b, x) {
+            //consol.log("a: ", a, "b: " , b,  "x: ", x);
+            return a*x + b;
+        }
+            
+        function linearRegression(y,x){
+                var lr = {};
+                var n = y.length;
+                var sum_x = 0;
+                var sum_y = 0;
+                var sum_xy = 0;
+                var sum_xx = 0;
+                var sum_yy = 0;
+
+                for (var i = 0; i < y.length; i++) {
+
+                        sum_x += x[i];
+                        sum_y += y[i];
+                        sum_xy += (x[i]*y[i]);
+                        sum_xx += (x[i]*x[i]);
+                        sum_yy += (y[i]*y[i]);
+                } 
+
+                lr['slope'] = (n * sum_xy - sum_x * sum_y) / (n*sum_xx - sum_x * sum_x);
+                lr['intercept'] = (sum_y - lr.slope * sum_x)/n;
+                lr['r2'] = Math.pow((n*sum_xy - sum_x*sum_y)/Math.sqrt((n*sum_xx-sum_x*sum_x)*(n*sum_yy-sum_y*sum_y)),2);
+
+                return lr;
+        }
+
+        if ($scope.time_array.length < 10)
+            return;
+
+        lr_width = linearRegression($scope.center_viewport_x, $scope.time_array);
+    
+        lr_height = linearRegression($scope.center_viewport_y, $scope.time_array);
+
+        new_yaw = linear_function(lr_width.slope, lr_width.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
+        new_pitch = linear_function(lr_height.slope, lr_height.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
+        
+        new_yaw   =   new_yaw     - Math.floor(new_yaw / Math.PI) * Math.PI;
+        new_pitch =   new_pitch   - Math.floor(new_pitch / Math.PI) * Math.PI;
+
+        return [new_yaw, new_pitch];
+    }
+    
+
+
+
+      $scope.get_visible_faces = function (cvp_x_radians, cvp_y_radians){
+        var frameObj = document.getElementById('frame');
+        var scene = frameObj.contentWindow.document.querySelector('a-scene');
+        var camera = scene.camera;
+        var camera_reference = scene.children[2]; //camera_reference
+        let faceStructureModified = camera_reference.faceStructure;
+        // console.log("faceStructure",faceStructure);
+        var visibleObjects = {};
+    
+            if (camera && faceStructureModified)
+            {
+            camera.updateMatrix();
+            camera.updateMatrixWorld();
+            
+            //Copy the actual camera to simulate rotations so that the original camera is not influenced
+            var cameraAux = camera.clone();        
+    
+            var frustum = new THREE.Frustum();
+    
+            // Make a frustum to know what is in the camera vision
+            frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));  
+            // console.log("-----------------------------------------------------")
+    
+            // Uses the faceStructureModified value because it could have an edit on the playback
+            for (var face in faceStructureModified) {
+                    let countPointsVisible = 0;
+                    let numberPoints = faceStructureModified[face].length;
+                    for (var position = 0; position < numberPoints; position++)
+                            if (frustum.containsPoint( faceStructureModified[face][position] ))
+                                    countPointsVisible++;
+                                    
+                    if (countPointsVisible > 0){
+                            let numberTruncaded = Math.floor((countPointsVisible / numberPoints)*1000) / 1000;
+                            visibleObjects[face] = numberTruncaded;
+                    }
+    
+            }
+    
+            // console.log("ACTUAL: ", visibleObjects);
+    
+            // Use quaternion to simulate the camera rotation
+            // It was noticed that the camera object does not change its quaternion value after the render process.
+            // With that in mind, the simulation is done by rotating the camera to the given center of the viewport
+            // as if the camera was in the initial position.
+            const quaternion_x = new THREE.Quaternion();
+            const quaternion_y = new THREE.Quaternion();
+    
+            // console.log("cvp_x_radians ", cvp_x_radians, "cvp_y_radians ", cvp_y_radians)
+            // Multiply by -1 because the quaternion rotation reference is the oposite from the one received from the update_center_viewport() function
+            quaternion_x.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), -1*cvp_x_radians );
+    
+            // Divide the Y center of the viewport because it goes from -PI to +PI and the rotation goes from -PI/2 to +PI/2 in this axis
+            quaternion_y.setFromAxisAngle( new THREE.Vector3( 1, 0, 0 ), cvp_y_radians/2 );
+            
+            //Just to make sure that its start from the initial position
+            cameraAux.quaternion = new THREE.Quaternion(0, 0, 0, 1);
+            cameraAux.quaternion.multiply(quaternion_x).multiply(quaternion_y);
+    
+            cameraAux.updateMatrix();
+            cameraAux.updateMatrixWorld();
+    
+    
+            // Make a new frustum to know what is in the camera vision simulation
+            var frustum2 = new THREE.Frustum();
+    
+            frustum2.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cameraAux.projectionMatrix, cameraAux.matrixWorldInverse));  
+    
+            visibleObjects = {};
+    
+            //Uses the faceStructure object because the value is not updaded on the render
+            for (var face in faceStructure) {
+                    let countPointsVisible = 0;
+                    let numberPoints = faceStructure[face].length;
+                    for (var position = 0; position < numberPoints; position++)
+                            if (frustum2.containsPoint( faceStructure[face][position] ))
+                                    countPointsVisible++;
+    
+                    if (countPointsVisible > 0){
+                            let numberTruncaded = Math.floor((countPointsVisible / numberPoints)*1000) / 1000;
+                            visibleObjects[face] = numberTruncaded;
+                    }
+            }
+            // console.log("PREDICTED: ", visibleObjects);
+            
+            }
+            return visibleObjects;
+    }
   
       //// Variables and functions for UI and options
       // For setting up the media source
@@ -502,14 +649,14 @@ app.controller('HomeController', function($scope) {
       }
   
       function can_play_event (e) {
-          console.log(e);
-          console.log("CAN PLAY PLAYER");
-          console.log($scope.player_ready++);
+          //consol.log(e);
+          //consol.log("CAN PLAY PLAYER");
+          //consol.log($scope.player_ready++);
           if ($scope.player_ready == 6){
-              console.log("START ALL PLAYERS")
+              //consol.log("START ALL PLAYERS")
               $scope.play_all();
   
-              console.log(e);
+              //consol.log(e);
               //AUTO-PLAY
               if($scope.auto_play_vr)
               {
@@ -594,7 +741,7 @@ app.controller('HomeController', function($scope) {
                       }
                   }
           
-                  line = line.slice(0, -1);
+                  line = line.slice(0, -1);download_csv
                   str += line + '\r\n';
               }
               return str;
@@ -661,9 +808,6 @@ app.controller('HomeController', function($scope) {
                           case "FOVRule":
                               $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'FOVRule', FOVRule);
                               break;
-                          // case "ThroughputRule":
-                          // 	$scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'MyThroughputRule', MyThroughputRule);
-                          // 	break;
                           case "HighestBitrateRule":
                               $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'HighestBitrateRule', HighestBitrateRule);
                               break;
@@ -672,6 +816,9 @@ app.controller('HomeController', function($scope) {
                               break;                            
                           case "FOVContentRule":
                               $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'FOVContentRule', FOVContentRule);
+                              break;
+                          case "FOVEditRule":
+                              $scope.players[$scope.playerCount].addABRCustomRule('qualitySwitchRules', 'FOVEditRule', FOVEditRule);
                               break;
                           default:
                               $scope.players[$scope.playerCount].updateSettings({
@@ -740,7 +887,7 @@ app.controller('HomeController', function($scope) {
           requestAnimationFrame(setNormalizedTime);
           //setInterval(setNormalizedTime, $scope.IntervalOfSetNormalizedTime);
           // Compute total throughput according to recent HTTP requests
-          //setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
+          setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
           // Compute QoE
           //setInterval(computeQoE, $scope.IntervalOfComputeQoE);
           // // Show the data in monitor
@@ -758,8 +905,12 @@ app.controller('HomeController', function($scope) {
           // }, $scope.IntervalOfCaptures);
   
   
-          setInterval(dynamicEditClass, $scope.IntervalOfDynamicEdit);
+          //setInterval(dynamicEditClass, $scope.IntervalOfDynamicEdit);
+          requestAnimationFrame(dynamicEditClass);
           
+          requestAnimationFrame(update_center_viewport);
+          //setInterval(update_center_viewport, $scope.IntervalOfDynamicEdit);
+
           document.getElementById('Load').style = "display: none;";
           document.getElementById('Play').style = "display: inline;";
       };
@@ -777,8 +928,9 @@ app.controller('HomeController', function($scope) {
                   $scope.normalizedTime = $scope.players[$scope.playerCount].time();
               }
           }
+          $scope.$apply();
   
-          requestAnimationFrame(setNormalizedTime);
+        requestAnimationFrame(setNormalizedTime);
       }
   
       // Compute total throughput according to recent HTTP requests (Total data in ONE second)

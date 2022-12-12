@@ -48,8 +48,6 @@ function dynamicEditClass () {
     
             let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
     
-            
-    
             ////console.log(CvpRadians);
             //Fade Effect Showcase
             if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == GRADUAL_EDIT){
@@ -103,16 +101,46 @@ function dynamicEditClass () {
                 if (isRotating){
                     editTypeValue = GRADUAL_EDIT;
                     hasEditScheduledValue = true;
+
+                    const quaternion = new THREE.Quaternion();
+                    
+
                     if (direction > 0)
                     {
                         //console.log("positive")
-                        camera_reference.object3D.rotation.y += ROTATION_SPEED;
-                        sphere_reference.object3D.rotation.y += ROTATION_SPEED;
+                        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), ROTATION_SPEED );
+                        camera_reference.object3D.quaternion.multiply(quaternion);
+                        sphere_reference.object3D.quaternion.multiply(quaternion);
+
+                        const quaternionFace = new THREE.Quaternion();
+                        quaternionFace.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), ROTATION_SPEED );
+                
+                        for (var face in camera_reference.faceStructure) {
+                            for (var position = 0; position < camera_reference.faceStructure[face].length; position++){
+                                camera_reference.faceStructure[face][position].applyQuaternion(quaternionFace);
+                                
+                            }
+                        }
+                        // camera_reference.object3D.rotation.y += ROTATION_SPEED;
+                        // sphere_reference.object3D.rotation.y += ROTATION_SPEED;
                     }
                     else {
                         //console.log("negative")
-                        camera_reference.object3D.rotation.y -= ROTATION_SPEED;
-                        sphere_reference.object3D.rotation.y -= ROTATION_SPEED;
+                        quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ),-1*ROTATION_SPEED );
+                        camera_reference.object3D.quaternion.multiply(quaternion);
+                        sphere_reference.object3D.quaternion.multiply(quaternion);
+
+                        const quaternionFace = new THREE.Quaternion();
+                        quaternionFace.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), -1*ROTATION_SPEED );
+                
+                        for (var face in camera_reference.faceStructure) {
+                            for (var position = 0; position < camera_reference.faceStructure[face].length; position++){
+                                camera_reference.faceStructure[face][position].applyQuaternion(quaternionFace);
+                                
+                            }
+                        }
+                        // camera_reference.object3D.rotation.y -= ROTATION_SPEED;
+                        // sphere_reference.object3D.rotation.y -= ROTATION_SPEED;
                     }
     
                 }
@@ -154,7 +182,7 @@ function dynamicEditClass () {
 
         //face_4.object3D.translateY(0.01);
     }
-    
+    requestAnimationFrame(dynamicEditClass);
 }
 
 
@@ -173,7 +201,8 @@ function fireRotation (roi_radians)
     {
         const quaternion = new THREE.Quaternion();
         quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), roi_radians );
-        // console.log("fire Rotation!!");
+        console.log("fire Rotation!!");
+        console.log("BEFORE camera_reference.faceStructure", camera_reference.faceStructure);
         const quaternionFace = new THREE.Quaternion();
         quaternionFace.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), roi_radians );
 
@@ -183,8 +212,11 @@ function fireRotation (roi_radians)
                 
             }
         }
+        console.log("AFTER camera_reference.faceStructure", camera_reference.faceStructure);
         camera_reference.object3D.quaternion.multiply(quaternion);
         sphere_reference.object3D.quaternion.multiply(quaternion);
+        // camera_reference.object3D.rotation.y += roi_radians;
+        // sphere_reference.object3D.rotation.y += roi_radians;
     }
 
 

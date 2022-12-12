@@ -73,12 +73,16 @@
 										HighestBitrateRule
 									</label>
 									<label data-toggle="tooltip" data-placement="right">
-										<input id="LowestBitrateRule" type="radio"  autocomplete="off" checked="checked" ng-click="changeABRStrategy('LowestBitrateRule')">
+										<input id="LowestBitrateRule" type="radio"  autocomplete="off" ng-click="changeABRStrategy('LowestBitrateRule')">
 										LowestBitrateRule
 									</label>									
 									<label data-toggle="tooltip" data-placement="right">
 										<input id="FOVContentRule" type="radio" autocomplete="off"  ng-click="changeABRStrategy('FOVContentRule')">
 										FOVContentRule
+									</label>
+									<label data-toggle="tooltip" data-placement="right">
+										<input id="FOVEditRule" type="radio" autocomplete="off" checked="checked" ng-click="changeABRStrategy('FOVEditRule')">
+										FOVEditRule
 									</label>
 									<label data-toggle="tooltip" data-placement="right">
 										<input id="DefaultRule" type="radio" autocomplete="off" ng-click="changeABRStrategy('DefaultRule')">
@@ -108,7 +112,7 @@
 									<label class="text-primary" data-toggle="tooltip" data-placement="top">Total Throughput : </label> {{totalThroughput >= 8000000 ? (totalThroughput / 8000000).toFixed(2) : (totalThroughput / 8000).toFixed(0)}} {{totalThroughput >= 8000000 ? " MB/s" : " kB/s"}}
 								</div>
 
-								<div class="text-success">
+<!-- 								<div class="text-success">
 									<label class="text-primary" data-toggle="tooltip" data-placement="top">Total QOE : </label> {{totalQOE.toFixed(2)}}
 								</div>
 								<div class="text-success">
@@ -116,7 +120,7 @@
 								</div>
 								<div class="text-success">
 									<label class="text-primary" data-toggle="tooltip" data-placement="top">Content-based QOE : </label> {{contentQOE.toFixed(2)}}
-								</div>
+								</div> -->
 								<!-- <div class="text-success"> -->
 									<!-- <input id="videoDroppedFramesCB" type="checkbox" -->
 											<!-- ng-model="chartState.video.droppedFPS.selected" -->

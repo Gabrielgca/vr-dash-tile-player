@@ -1,7 +1,6 @@
-var LowestBitrateRule;
+var FOVEditRule;
 
-// Rule that selects the possible lowest bitrate
-function LowestBitrateRuleClass() {
+function FOVEditRuleClass() {
 
     let factory = dashjs.FactoryMaker;
     let SwitchRequest = factory.getClassFactoryByName('SwitchRequest');
@@ -13,10 +12,10 @@ function LowestBitrateRuleClass() {
     function setup() {
     }
 
-    // Always select the lowest bitrate
+
     function getMaxIndex(rulesContext) {
-        //console.log("rulesContext: ", rulesContext);
-        //console.log("rulesContext.getMediaInfo(): ", rulesContext.getMediaInfo());
+        ////consol.log("rulesContext: ", rulesContext);
+        ////consol.log("rulesContext.getMediaInfo(): ", rulesContext.getMediaInfo());
         const switchRequest = SwitchRequest(context).create();
 
         if (!rulesContext || !rulesContext.hasOwnProperty('getMediaInfo') || !rulesContext.hasOwnProperty('getAbrController')) {
@@ -26,16 +25,20 @@ function LowestBitrateRuleClass() {
         const mediaType = rulesContext.getMediaInfo().type;
         const mediaInfo = rulesContext.getMediaInfo();
         const abrController = rulesContext.getAbrController();
+        console.log("🚀 abrController", abrController)
         let dashMetrics = DashMetrics(context).getInstance();
+        console.log("🚀 dashMetrics: ", dashMetrics)
         let streamController = StreamController(context).getInstance();
-
+        console.log(dashMetrics.getHttpRequests(mediaType))
         var appElement = document.querySelector('[ng-controller=DashController]');
         var $scope = angular.element(appElement).scope();
-        let center_viewport_x = $scope.center_viewport_x;
-        let center_viewport_y = $scope.center_viewport_y;
-        // console.log("streamController: ", streamController);
-        // console.log("$center_viewport_x", $scope.center_viewport_x);
-        // console.log("$time_array", $scope.time_array);
+        let center_viewport_x = $scope.current_center_viewport_x;
+        let center_viewport_y = $scope.current_center_viewport_y;
+        console.log("streamController: ", streamController);
+        
+        
+        //consol.log("$center_viewport_xxxx", $scope.center_viewport_x);
+        //consol.log("$time_array", $scope.time_array);
         if (mediaType != "video") {  // Default settings for audio
             return switchRequest;           
         }
@@ -46,7 +49,12 @@ function LowestBitrateRuleClass() {
         switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
 
         const bitrateList = abrController.getBitrateList(mediaInfo);  // List of all the selectable bitrates
+        //consol.log("oi oi ")
+        let visible_faces = $scope.get_visible_faces(center_viewport_x, center_viewport_y);
+        // console.log("$visible_faces", visible_faces);
 
+        let predicted_viewport = $scope.predict_center_viewport(1);
+        // console.log("current center_viewport_x", center_viewport_x, "current center_viewport_y", center_viewport_y,"predicted yaw: ", predicted_viewport[0], "predicted pitch: ",  predicted_viewport[1]);
         let tag = 0;
         if (bitrateList.length <= 1) {
             return switchRequest;
@@ -58,7 +66,7 @@ function LowestBitrateRuleClass() {
         }
 
 
-        switchRequest.quality = tag;
+        switchRequest.quality = 5;
 
         return switchRequest;
     }
@@ -72,6 +80,5 @@ function LowestBitrateRuleClass() {
     return instance;
 }
 
-LowestBitrateRuleClass.__dashjs_factory_name = 'LowestBitrateRule';
-LowestBitrateRule = dashjs.FactoryMaker.getClassFactory(LowestBitrateRuleClass);
-
+FOVEditRuleClass.__dashjs_factory_name = 'FOVEditRule';
+FOVEditRule = dashjs.FactoryMaker.getClassFactory(FOVEditRuleClass);

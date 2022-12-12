@@ -6,15 +6,24 @@
 
 		<meta charset="utf-8"/>
 		<title>VRE_PLAYER</title>
-		
+
+		<script src="../app/lib/jquery/jquery-3.1.1.min.js"></script>
+  
+		<script src="../app/lib/angular/angular.min.js"></script>
+		<script src="../app/lib/angular/angular-resource.min.js"></script>
+		<script src="../app/lib/angular/angular-flot.js"></script>
+		<script src="../app/lib/angular/angular-route.js"></script>
+
 		<script src="../aframe/dist/aframe-master.js"></script>
-		
+		<script src="../viewport_utils/faceStructure.js"></script>
 		<script src="../viewport_utils/viewportUtils.js"></script>
+		
 		<script>
+		const sample_cadence = 500; // miliseconds
 
 		function convert_normalized_to_degree(cvp_norm) {
 				return 360*cvp_norm - 180;
-			};
+		};
 
 		function convert_normalized_to_radians(cvp_norm) {
 			return 2*Math.PI*cvp_norm - Math.PI;
@@ -26,7 +35,7 @@
 		AFRAME.registerComponent('do-something-on-head-movement', {
 		init: function () {
 
-			this.tick = AFRAME.utils.throttleTick(this.tick, 500, this);
+			this.tick = AFRAME.utils.throttleTick(this.tick, sample_cadence, this);
 			var scene = document.querySelector('a-scene');
 
 			var camera_reference = scene.children[2]; //camera_reference
@@ -46,12 +55,12 @@
 		},
 		tick: function(t,dt)
 		{
-			// Get Head Position
-			var [cvp_x_radians, cvp_y_radians] = update_center_viewport();
-			// Get Visible Faces
-			var result = get_visible_faces(cvp_x_radians, cvp_y_radians);
+			// // Get Head Position
+			// var [cvp_x_radians, cvp_y_radians] = update_center_viewport();
+			// // Get Visible Faces
+			// var result = get_visible_faces(cvp_x_radians, cvp_y_radians);
 
-			console.log("RESULT: ", result);
+			// console.log("RESULT: ", result);
 		}
 		});
 
