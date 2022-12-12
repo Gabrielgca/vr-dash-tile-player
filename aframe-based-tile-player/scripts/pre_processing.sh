@@ -51,9 +51,9 @@ done
 ############################################################
 # CONVERT EQUIRETANGULAR TO CUBE MAPPING PROJECTION        #
 ############################################################
-# echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
-# ffmpeg -i $paramI -vf v360=e:c3x2:cubic:w=$paramW:h=$paramH:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an CMP_$paramI
-# echo "[DONE] Converting Equirectangular Projection to Cube Mapping Projection"
+echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
+ffmpeg -i $paramI -vf v360=e:c3x2:cubic:w=$paramW:h=$paramH:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an CMP_$paramI
+echo "[DONE] Converting Equirectangular Projection to Cube Mapping Projection"
 
 
 ############################################################
