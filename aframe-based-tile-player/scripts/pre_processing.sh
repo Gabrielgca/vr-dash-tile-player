@@ -48,37 +48,22 @@ while true; do
    esac
 done
 
-
-echo "Initializing the process..."
-echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
-#ffmpeg -i The_Guitar_Man.mp4 -vf v360=e:c3x2:cubic:w=1920:h=1080:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 CMP_The_Guitar_Man.mp4
-
-echo $paramI
-echo $paramW
-echo $paramH
-echo $scriptDir
-echo $((paramW/paramH))
-
-for ((i=0;i<6;i++));
-do
-    mkdir -p ./face$i/
-echo $i
-done
-
-# ffmpeg -y -i CMP_The_Guitar_Man.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=0*(in_w/3):y=0*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face0/face0.mp4
-
-
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=0*(in_w/3):y=0*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face0.mp4
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=1*(in_w/3):y=0*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face1.mp4
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=2*(in_w/3):y=0*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face2.mp4
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=0*(in_w/3):y=1*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face3.mp4
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=1*(in_w/3):y=1*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face4.mp4
-# ffmpeg -y -i CMP_video.mp4 -vf "crop=w=in_w/3:h=in_h/2:x=2*(in_w/3):y=1*(in_h/2)" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face5.mp4
+############################################################
+# CONVERT EQUIRETANGULAR TO CUBE MAPPING PROJECTION        #
+############################################################
+# echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
+# ffmpeg -i $paramI -vf v360=e:c3x2:cubic:w=$paramW:h=$paramH:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an CMP_$paramI
+# echo "[DONE] Converting Equirectangular Projection to Cube Mapping Projection"
 
 
 ############################################################
 # SLICE FACES INTO INDIVIDUAL VIDEOS                       #
 ############################################################
+
+for ((i=0;i<6;i++));
+do
+    mkdir -p ./face$i/
+done
 
 for ((y=0, face=0;y<=1;y++));
 do
@@ -87,11 +72,74 @@ do
         echo "[INFO] Now slicing face $face..."
 
         vfParam="crop=w=in_w/3:h=in_h/2:x=$x*(in_w/3):y=$y*(in_h/2)"
-        ffmpeg -y -i $paramI -vf "$vfParam" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face$face/face$face.mp4
+        ffmpeg -y -i CMP_$paramI -vf "$vfParam" -c:v libvpx-vp9 -keyint_min 30 -g 30 -sc_threshold 0 -an face$face/face$face.mp4
         
         echo "[DONE] Slicing face $face!"
     done
 done
 
 
-echo "Done"
+############################################################
+# TRANSCONDING THE VIDEOS INTO DIFFERENT BITRATES          #
+############################################################
+
+for ((i=0;i<6;i++));
+do
+    for ((crfValue=0;crfValue<=60;crfValue+=20));
+    do
+    echo "[INFO] Transcoding the face $i into bitrate with CRF $crfValue..."
+
+    outputName="face$i/face${i}_$crfValue.mp4"
+    ffmpeg -i face$i/face$i.mp4 -c:v libvpx-vp9 -crf $crfValue -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an $outputName
+    
+    echo "[DONE] Transcoding the face $i into bitrate with CRF $crfValue!"
+    done
+    # 
+done
+
+############################################################
+# CONVERT VIDEO INTO FRAGMENT FORMAT                       #
+############################################################
+
+for ((i=0;i<6;i++));
+do
+    for ((crfValue=0;crfValue<=60;crfValue+=20));
+    do
+    echo "[INFO] Convert the face $i and CRF $crfValue into fragment..."
+    
+    inputName="face$i/face${i}_$crfValue.mp4"
+    outputName="face$i/f_face${i}_$crfValue.mp4"
+    mp4fragment --fragment-duration 1000 $inputName $outputName
+    
+    echo "[DONE] Convert the face $i and CRF $crfValue into fragment!"
+    done
+    # 
+done
+
+############################################################
+# CONVERT INTO DASH SEGMENTS                               #
+############################################################
+for ((i=0;i<5;i++));
+do
+    echo "[INFO] Convert the face $i into dash segment..."
+    
+    findResult=$(find $scriptDir/face$i -type f -name "f_face*.mp4" | tr '\n' ' ')
+    mp4dash --output-dir=$scriptDir/face$i/output -f --mpd-name=face$i.mpd $findResult
+    
+    echo "[DONE] Convert the face $i into dash segment!"
+done
+
+
+
+############################################################
+# EXTRACT AUDIO FROM VIDEO                                 #
+############################################################
+echo "[INFO] Extracting the audio from the video and dashing it..."
+
+mkdir -p ./audio
+ffmpeg -i $paramI -vn -acodec copy -y audio/audio.mp4
+mp4fragment --fragment-duration 1000 audio/audio.mp4 audio/f_audio.mp4
+mp4dash --output-dir=audio -f --mpd-name=audio.mpd audio/f_audio.mp4
+echo "[DONE] Extracting the audio from the video and dashing it!"
+
+echo "[DONE] Pre-process done! Remember to create the JSON file to store the whole information."
