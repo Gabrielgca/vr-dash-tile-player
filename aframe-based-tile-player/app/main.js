@@ -652,6 +652,7 @@ app.controller('HomeController', function($scope) {
           //consol.log(e);
           //consol.log("CAN PLAY PLAYER");
           //consol.log($scope.player_ready++);
+          $scope.player_ready++
           if ($scope.player_ready == 6){
               //consol.log("START ALL PLAYERS")
               $scope.play_all();
