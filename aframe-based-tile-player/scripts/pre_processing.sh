@@ -119,7 +119,7 @@ done
 ############################################################
 # CONVERT INTO DASH SEGMENTS                               #
 ############################################################
-for ((i=0;i<5;i++));
+for ((i=0;i<=5;i++));
 do
     echo "[INFO] Convert the face $i into dash segment..."
     
