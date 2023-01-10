@@ -47,6 +47,8 @@ app.controller('HomeController', function($scope) {
       //// Global variables for storage
       $scope.players = [];  // Container for players, which is easy for us to operate in them.
       $scope.playerCount = 0;
+      $scope.videoFrameRate = 30;
+      $scope.frameNumber = 0;
       $scope.buffer_empty_flag = [];  // Flags for players, showing whether the player is frozen or not.
       $scope.lon = 90, $scope.lat = 0;  // Longitude and latitude in spherical coordinates.
       $scope.pointerX, $scope.pointerY;  // Position of mouse click
@@ -81,10 +83,10 @@ app.controller('HomeController', function($scope) {
   
       $scope.selectedItem = {  // Save the selected media source
           type:"json",
-          value:"https://192.168.15.92/CQ07/aframeVP907.json"
+          value:"https://192.168.15.92/Guitar_Man/aframeVP907.json"
       };
       $scope.optionButton = "Show Options";  // Save the state of option button
-      $scope.selectedRule = "FOVEditRule";  // Save the selected media source
+      $scope.selectedRule = "FOVRule";  // Save the selected media source
       $scope.stats = [];  // Save all the stats need to put on the charts
       $scope.chartData_quality = [];  // Save the qualtiy data need to put on the charts
       $scope.chartData_buffer = [];  // Save the buffer data need to put on the charts
@@ -274,7 +276,6 @@ app.controller('HomeController', function($scope) {
 
       $scope.predict_center_viewport = function (prediction_seconds) {
 
-        //consol.log("ENTERING PREDICTION")
         //############## LINEAR REGRESSION ##############//
             
         function linear_function (a, b, x) {
@@ -307,18 +308,40 @@ app.controller('HomeController', function($scope) {
                 return lr;
         }
 
+        function convert_normalized_to_radians(cvp_norm) {
+			return 2*Math.PI*cvp_norm - Math.PI;
+		};
+
+        function convert_radians_to_normalized_from_array(cvp_radians) {
+			return cvp_radians.map( cvp => cvp/(2*Math.PI) + 0.5);
+		};
+
         if ($scope.time_array.length < 10)
             return;
 
-        lr_width = linearRegression($scope.center_viewport_x, $scope.time_array);
+        lr_width = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_x), $scope.time_array);
     
-        lr_height = linearRegression($scope.center_viewport_y, $scope.time_array);
+        lr_height = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_y), $scope.time_array);
 
         new_yaw = linear_function(lr_width.slope, lr_width.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
         new_pitch = linear_function(lr_height.slope, lr_height.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
         
-        new_yaw   =   new_yaw     - Math.floor(new_yaw / Math.PI) * Math.PI;
-        new_pitch =   new_pitch   - Math.floor(new_pitch / Math.PI) * Math.PI;
+        new_yaw = convert_normalized_to_radians(new_yaw);
+        new_pitch = convert_normalized_to_radians(new_pitch);
+
+        if (new_yaw > Math.PI){
+            new_yaw   =   -Math.PI     + new_yaw % Math.PI;
+        }
+        else if (new_yaw < -Math.PI){
+            new_yaw   =   Math.PI     + new_yaw % Math.PI;
+        }
+
+        if (new_pitch > Math.PI){
+            new_pitch   =   new_pitch     - Math.floor(new_pitch / Math.PI) * Math.PI;
+        }
+        else if (new_pitch < -Math.PI){
+            new_pitch   =   new_pitch     + Math.floor(new_pitch / Math.PI) * Math.PI;
+        }
 
         return [new_yaw, new_pitch];
     }
@@ -331,6 +354,7 @@ app.controller('HomeController', function($scope) {
         var scene = frameObj.contentWindow.document.querySelector('a-scene');
         var camera = scene.camera;
         var camera_reference = scene.children[2]; //camera_reference
+
         let faceStructureModified = camera_reference.faceStructure;
         // console.log("faceStructure",faceStructure);
         var visibleObjects = {};
@@ -531,7 +555,10 @@ app.controller('HomeController', function($scope) {
       // Get contents through HTTP requests
       function getContents(url, callback) {
           var xhr = new XMLHttpRequest();
+
+          
           xhr.open("GET", url, true);
+
           xhr.onload = callback;
           xhr.send();
       }
@@ -655,6 +682,7 @@ app.controller('HomeController', function($scope) {
           $scope.player_ready++
           if ($scope.player_ready == 6){
               //consol.log("START ALL PLAYERS")
+              console.log("PLAY")
               $scope.play_all();
   
               //consol.log(e);
@@ -762,6 +790,8 @@ app.controller('HomeController', function($scope) {
                   for (let k = 0; k < $scope.contents.col; k++) {
                       //if (i != 4 && i != 1) continue;
                       video = document.getElementById( "frame" ).contentWindow.document.querySelector("#" + "video_" + [i * $scope.contents.row * $scope.contents.col + j * $scope.contents.col + k]);
+
+                    
                       //IMPORTANT - Create one player for each face of the cube and each tile of the face.
                       $scope.players[$scope.playerCount] = new dashjs.MediaPlayer().create();
                       url = $scope.contents.baseUrl + $scope.contents.tiles[i][j][k].src;
@@ -868,6 +898,9 @@ app.controller('HomeController', function($scope) {
                       'count': $scope.playerCount,
                       'duration': $scope.contents.duration
                   }
+                //   'debug': {
+                //     'logLevel': dashjs.Debug.LOG_LEVEL_DEBUG
+                // }
               });
   
               // Turn on the event listeners and add actions for triggers 
@@ -884,8 +917,11 @@ app.controller('HomeController', function($scope) {
           }
   
           $scope.startupTime = new Date().getTime();
+
           // Set the fastest mediaplayer's timeline as the normalized time
           requestAnimationFrame(setNormalizedTime);
+
+          requestAnimationFrame(printFrames);
           //setInterval(setNormalizedTime, $scope.IntervalOfSetNormalizedTime);
           // Compute total throughput according to recent HTTP requests
           setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
@@ -912,10 +948,24 @@ app.controller('HomeController', function($scope) {
           requestAnimationFrame(update_center_viewport);
           //setInterval(update_center_viewport, $scope.IntervalOfDynamicEdit);
 
+
+
           document.getElementById('Load').style = "display: none;";
           document.getElementById('Play').style = "display: inline;";
       };
-  
+      
+
+
+      function printFrames () {
+        var frameObj = document.getElementById('frame');
+        var scene = frameObj.contentWindow.document.querySelector('a-scene');
+        var camera = scene.camera;
+        var camera_reference = scene.children[2];
+
+
+        requestAnimationFrame(printFrames);
+
+      }
       // Set the fastest mediaplayer's timeline as the normalized time
       function setNormalizedTime() {
           $scope.normalizedTime = $scope.players[0].time();

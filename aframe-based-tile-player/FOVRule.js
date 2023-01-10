@@ -15,6 +15,7 @@ function FOVRuleClass() {
 
     // Always select a bitrate according to FOV
     function getMaxIndex(rulesContext) {
+
         const switchRequest = SwitchRequest(context).create();
 
         if (!rulesContext || !rulesContext.hasOwnProperty('getMediaInfo') || !rulesContext.hasOwnProperty('getAbrController')) {
@@ -31,7 +32,26 @@ function FOVRuleClass() {
 
         // Compute the bitrate according to FOV
         var info = abrController.getSettings().info;
-        var priorite = computeQualities(info);  // From 0 to 100
+
+        let center_viewport_x = $scope.current_center_viewport_x;
+        let center_viewport_y = $scope.current_center_viewport_y;
+        
+        let visible_faces = $scope.get_visible_faces(center_viewport_x, center_viewport_y);
+
+        var priorite = 0;
+        for (face in visible_faces){
+            
+            if (face.includes(info.face) ){
+                isFaceVisible = true;
+                priorite = visible_faces[face] * 100;
+                break;
+            }
+
+        }
+        
+      
+        
+        // computeQualities(info);  // From 0 to 100
 
         // Ask to switch to the bitrate according to FOV
         switchRequest.quality = 0;
@@ -45,12 +65,14 @@ function FOVRuleClass() {
                 break;
             }
         }
-
+        console.log("info.face", info.face, "priorite", priorite, "quality", switchRequest.quality);
+        
         return switchRequest;
     }
-
+    
     function computeQualities(info) {
-
+        //latitude = x axis yaw
+        // longitude = y axis pitch
         if (!info) {
             console.log("Lack of info when computing FOV-based qualities!!!");
             return 0;

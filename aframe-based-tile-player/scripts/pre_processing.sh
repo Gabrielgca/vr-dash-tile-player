@@ -49,7 +49,7 @@ while true; do
 done
 
 ############################################################
-# CONVERT EQUIRETANGULAR TO CUBE MAPPING PROJECTION        #
+# CONVERT EQUIRECTANGULAR TO CUBE MAPPING PROJECTION        #
 ############################################################
 echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
 ffmpeg -i $paramI -vf v360=e:c3x2:cubic:w=$paramW:h=$paramH:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an CMP_$paramI
@@ -113,6 +113,15 @@ do
     
     echo "[DONE] Convert the face $i and CRF $crfValue into fragment!"
     done
+
+    echo "[INFO] Creating fragment with a high CRF to be the lowest quality of the unvisible faces"
+    
+    crfValue="120"
+    inputName="face$i/face${i}_$crfValue.mp4"
+    outputName="face$i/f_face${i}_$crfValue.mp4"
+    mp4fragment --fragment-duration 1000 $inputName $outputName
+    
+    echo "[DONE] Creating fragment with a high CRF to be the lowest quality of the unvisible face!"
     # 
 done
 
