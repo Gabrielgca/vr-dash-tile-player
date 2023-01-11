@@ -3,10 +3,10 @@
 const INSTANT_EDIT = "instant";
 const GRADUAL_EDIT = "gradual";
 
-const EDIT_TIME = 2; //seconds
+const EDIT_TIME = 2.5; //seconds
 const FADE_TIME = 1; //seconds after edit started
 const ROTATION_SPEED = 0.005; //radians per 10 miliseconds
-const OPACITY_THRESHOLD = 0.9; // opacity that will start the snapcut on the fade rotation edit
+const OPACITY_THRESHOLD = 0.95; // opacity that will start the snapcut on the fade rotation edit
 const ENABLE_EDIT = true;
 
 
@@ -14,23 +14,38 @@ const ENABLE_EDIT = true;
 var sphere_reference, camera_reference;
 var doIt = true;
 var doFade = true;
+
+var enableRotation = true;
+var enableFade = true;
+var fadeStarted = false;
+var isSnapCutEnabled = true;
 var dist_nearest_roi_gradual;
 var direction;
 var isRotating = false;
 var editEditInfoJSON;
 let next_edit = 0;
 let CvpXRadians, CvpYRadians;
-let last_timestamp_with_edit = 0;
+let last_frame_with_edit = 0;
     
 function dynamicEditClass () {
         
     if (ENABLE_EDIT){
         [sphere_reference, camera_reference ] = getIframeEntities('frame');
+
+
     
         var appElement = document.querySelector('[ng-controller=DashController]');
         var $scope = angular.element(appElement).scope();
         editEditInfoJSON = $scope.contents.edits.edit;
+
+        if ( $scope.frameNumber == 0) {
+            $scope.frameNumber = camera_reference.videoFrames["video_0"];
+        }
+
+
+        var currentFrame = $scope.frameNumber.get();
         var currentTime = $scope.normalizedTime;
+        var frameRate = $scope.videoFrameRate;
         var normCurrentTime = Math.ceil(currentTime);
         ////console.log("FROM DYNAMIC EDIT")
         let CvpDegree = sphere_reference["head_movement_degree"];
@@ -47,48 +62,44 @@ function dynamicEditClass () {
             CvpXRadians = CvpRadians[0];
     
             let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
-    
+            
             ////console.log(CvpRadians);
             //Fade Effect Showcase
             if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == GRADUAL_EDIT){
-
                 
-                let timeStartGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME);
-                let timeStopGradualRotation = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] + EDIT_TIME);
+                let currentFrameEdit = editEditInfoJSON[next_edit] ? editEditInfoJSON[next_edit]["frame"] : 0;
+                let frameStartGradualRotation = Math.ceil(currentFrameEdit - (EDIT_TIME * 2 * frameRate));
+                let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 2 * frameRate));
     
-                let timeStartFade = Math.ceil(editEditInfoJSON[next_edit]["timestamp"] - EDIT_TIME + FADE_TIME);
+                let frameStartFade = Math.ceil(frameStopGradualRotation - ((EDIT_TIME + FADE_TIME)* 2 * frameRate));
                 
                 
-                if (timeStartGradualRotation == normCurrentTime){
-                    //console.log("START ROTATION");
+                if (currentFrame >= frameStartGradualRotation  && enableRotation ){
+                    console.log("START ROTATION");
                     
+                    console.log("🚀 ~ file: dynamicEdit.js:85 ~ dynamicEditClass ~ frameStartGradualRotation", frameStartGradualRotation);
+                    console.log("🚀 ~ file: dynamicEdit.js:85 ~ dynamicEditClass ~ currentFrame", currentFrame);
                     [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(CvpXRadians);
                     
                     // if the RoI is under 30° from the current center of the viewport, it is not needed to do an edit
                     if (dist_nearest_roi_gradual >= 0.5235){
                         isRotating = true;
                     }
-                    else {
-                        doIt = false;
-                        doFade = false;
-                    }
+
+                    enableRotation = false;
                 }
-                if (timeStopGradualRotation == normCurrentTime){
-                    //console.log("STOP ROTATION");
-                    next_edit++;
-                    doIt = true;
-                    doFade = true;
-                    isRotating = false;
-                }
+
     
-                if (timeStartFade == normCurrentTime && doFade){
-                    doFade = false;
-                    //console.log("START FADE");
+                if (currentFrame >= frameStartFade && enableFade){
+                    console.log("START FADE");
                     sphere_reference.emit('fadeEffect');
+                    enableFade = false;
+                    fadeStarted = true;
                 }
+
                 //console.log(sphereOpacity, doIt);
-                if (sphereOpacity >= OPACITY_THRESHOLD && doIt){
-                    //console.log("START SNAPCUT");
+                if (sphereOpacity >= OPACITY_THRESHOLD && fadeStarted && doIt){
+                    console.log("START SNAPCUT");
                     doIt = false;
                     let snapCutRotation = handleSnapCut(CvpXRadians);
 
@@ -144,6 +155,17 @@ function dynamicEditClass () {
                     }
     
                 }
+
+                if (currentFrame >= frameStopGradualRotation){
+                    console.log("STOP ROTATION");
+                    next_edit++;
+                    isRotating = false;
+                    enableRotation = true;
+                    enableSnapCut = true;
+                    enableFade = true;
+                    fadeStarted = false;
+                    doIt = true;
+                }
             }
         
             
@@ -151,12 +173,17 @@ function dynamicEditClass () {
             // and if the last frame already had an edit (this is needed because the last frame is redrawn when the edit happens)
             if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == INSTANT_EDIT)
             {
-                if (editEditInfoJSON[next_edit]["timestamp"] == normCurrentTime && last_timestamp_with_edit != normCurrentTime){
+                let currentFrameEdit = editEditInfoJSON[next_edit] ? editEditInfoJSON[next_edit]["frame"] : 0;
+                
+                if (currentFrame >= currentFrameEdit && last_frame_with_edit != currentFrame ){
+                    console.log("START INSTANT SNAPCUT");
+                    console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
+                    console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrame", currentFrame)
                     editTypeValue = INSTANT_EDIT;
                     hasEditScheduledValue = true;
 
                     let snapCutRotation = handleSnapCut(CvpXRadians);
-                    last_timestamp_with_edit = normCurrentTime;
+                    last_frame_with_edit = currentFrame;
                     if (snapCutRotation != undefined){
                         radiansRotationValue = snapCutRotation;
                         editHappenedValue = true;
