@@ -3,9 +3,9 @@
 const INSTANT_EDIT = "instant";
 const GRADUAL_EDIT = "gradual";
 
-const EDIT_TIME = 2.5; //seconds
-const FADE_TIME = 1; //seconds after edit started
-const ROTATION_SPEED = 0.005; //radians per 10 miliseconds
+const EDIT_TIME = 1.5; //time in seconds that the edit will take
+const FADE_TIME = EDIT_TIME/2; //time in seconds after edit started to start the fade animation
+const ROTATION_SPEED = 0.005; //radians per frame (60 frames per second on web)
 const OPACITY_THRESHOLD = 0.95; // opacity that will start the snapcut on the fade rotation edit
 const ENABLE_EDIT = true;
 
@@ -32,34 +32,43 @@ function dynamicEditClass () {
     if (ENABLE_EDIT){
         [sphere_reference, camera_reference ] = getIframeEntities('frame');
 
-
-    
         var appElement = document.querySelector('[ng-controller=DashController]');
         var $scope = angular.element(appElement).scope();
         editEditInfoJSON = $scope.contents.edits.edit;
 
         if ( $scope.frameNumber == 0) {
             $scope.frameNumber = camera_reference.videoFrames["video_0"];
+            $scope.videoFrameRate = camera_reference.videoFrames["video_0"]["frameRate"];
         }
 
 
         var currentFrame = $scope.frameNumber.get();
+        // console.log("🚀 ~ file: dynamicEdit.js:46 ~ dynamicEditClass ~ currentFrame", currentFrame)
         var currentTime = $scope.normalizedTime;
         var frameRate = $scope.videoFrameRate;
         var normCurrentTime = Math.ceil(currentTime);
         ////console.log("FROM DYNAMIC EDIT")
         let CvpDegree = sphere_reference["head_movement_degree"];
-        let CvpRadians = sphere_reference["head_movement_radians"];
+        // let CvpRadians = sphere_reference["head_movement_radians"];
 
+        let CvpRadians = $scope.predict_center_viewport(frameRate);
+        
+        
         let hasEditScheduledValue = false;
         let editHappenedValue = false;
         let radiansRotationValue = 0;
         let editTypeValue = "null";
-
+        
         if (CvpRadians != undefined){
-    
+
+            
             // Only use the X axis for the edit
             CvpXRadians = CvpRadians[0];
+            CvpYRadians = CvpRadians[1];
+            
+            // console.log("🚀 ~ file: dynamicEdit.js:60 ~ dynamicEditClass ~ CvpXRadians", CvpXRadians);
+            // console.log("🚀 ~ file: dynamicEdit.js:62 ~ dynamicEditClass ~ CvpYRadians", CvpYRadians);
+            
     
             let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
             
@@ -69,16 +78,16 @@ function dynamicEditClass () {
                 
                 let currentFrameEdit = editEditInfoJSON[next_edit] ? editEditInfoJSON[next_edit]["frame"] : 0;
                 let frameStartGradualRotation = Math.ceil(currentFrameEdit - (EDIT_TIME * 2 * frameRate));
-                let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 2 * frameRate));
-    
-                let frameStartFade = Math.ceil(frameStopGradualRotation - ((EDIT_TIME + FADE_TIME)* 2 * frameRate));
+                let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 1 * frameRate));
+                // console.log("🚀 ~ file: dynamicEdit.js:79 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
+                // console.log("🚀 ~ file: dynamicEdit.js:80 ~ dynamicEditClass ~ frameStartGradualRotation", frameStartGradualRotation)
+                // console.log("🚀 ~ file: dynamicEdit.js:81 ~ dynamicEditClass ~ frameStopGradualRotation", frameStopGradualRotation)
                 
+                let frameStartFade = Math.ceil(frameStopGradualRotation - ((EDIT_TIME + FADE_TIME)* 2 * frameRate));
                 
                 if (currentFrame >= frameStartGradualRotation  && enableRotation ){
                     console.log("START ROTATION");
                     
-                    console.log("🚀 ~ file: dynamicEdit.js:85 ~ dynamicEditClass ~ frameStartGradualRotation", frameStartGradualRotation);
-                    console.log("🚀 ~ file: dynamicEdit.js:85 ~ dynamicEditClass ~ currentFrame", currentFrame);
                     [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(CvpXRadians);
                     
                     // if the RoI is under 30° from the current center of the viewport, it is not needed to do an edit
@@ -90,7 +99,7 @@ function dynamicEditClass () {
                 }
 
     
-                if (currentFrame >= frameStartFade && enableFade){
+                if (currentFrame >= frameStartFade && enableFade && isRotating){
                     console.log("START FADE");
                     sphere_reference.emit('fadeEffect');
                     enableFade = false;
@@ -101,7 +110,17 @@ function dynamicEditClass () {
                 if (sphereOpacity >= OPACITY_THRESHOLD && fadeStarted && doIt){
                     console.log("START SNAPCUT");
                     doIt = false;
-                    let snapCutRotation = handleSnapCut(CvpXRadians);
+                    let snapCutRotation;
+                    let delay;
+                    if (direction > 0){
+                        delay = -ROTATION_SPEED * (frameRate / 2);
+                    }
+                    else {
+                        delay = ROTATION_SPEED * (frameRate / 2);
+                    }
+                    snapCutRotation = handleSnapCut(CvpXRadians - delay);
+
+                    
 
                     if (snapCutRotation != undefined){
                         radiansRotationValue = snapCutRotation;
@@ -193,7 +212,7 @@ function dynamicEditClass () {
             }
 
             let frame_data = {
-                frame: Math.ceil(currentTime),
+                frame: Math.ceil(currentFrame),
                 yaw: Number.parseFloat(CvpRadians[0]).toFixed(4),
                 pitch: Number.parseFloat(CvpRadians[1]).toFixed(4),
                 hasEditScheduled: hasEditScheduledValue,
@@ -253,9 +272,6 @@ function handleSnapCut(CvpXRadians)
             
     [abs_dist_nearest_roi, dist_nearest_roi, index_dist_nearest_roi]= getNearestRegionOfInterest(CvpXRadians)
     
-
-    let nearest_region_of_interest = editEditInfoJSON[next_edit]["region_of_interest"][index_dist_nearest_roi]["ROI_theta"];
-    //console.log(nearest_region_of_interest)
 
     // if the RoI is under 30° from the current center of the viewport, it is not needed to do a snapcut
     if (abs_dist_nearest_roi >= 0.5235){

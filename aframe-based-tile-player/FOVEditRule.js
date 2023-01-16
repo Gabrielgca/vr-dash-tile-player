@@ -1,5 +1,9 @@
 var FOVEditRule;
 
+
+// Verificar caso em que existe um buffer mais cheio que outro e uma edição irá acontecer
+// É necessário deixar guardado que aquela edição irá acontecer pra quando a face com menor buffer fizer a requisição
+// Faça como as demais faces
 function FOVEditRuleClass() {
 
     let factory = dashjs.FactoryMaker;
@@ -11,6 +15,7 @@ function FOVEditRuleClass() {
     let Debug = factory.getSingletonFactoryByName('Debug');
 
     let context = this.context;
+    let next_edit = 0;
     let instance,
         logger;
 
@@ -37,27 +42,48 @@ function FOVEditRuleClass() {
         
         var appElement = document.querySelector('[ng-controller=DashController]');
         var $scope = angular.element(appElement).scope();
-        let center_viewport_x = $scope.current_center_viewport_x;
-        let center_viewport_y = $scope.current_center_viewport_y;
 
+        var currentFrame = $scope.frameNumber.get();
+        
+        
+        let frameRate = $scope.videoFrameRate;
+
+        let editInfoJSON = $scope.contents.edits.edit;
+        let editInfo = editInfoJSON[next_edit];
+        let nextEditedFrame = editInfo && editInfo["frame"];
+        let segmentWithEdit = nextEditedFrame && Math.ceil(nextEditedFrame / frameRate);
+        
         let requests = dashMetrics.getHttpRequests(mediaType),
-            lastRequest = null,
-            currentRequest = null,
-            downloadTime,
-            totalTime,
-            calculatedBandwidth,
-            currentBandwidth,
-            latencyInBandwidth,
-            switchUpRatioSafetyFactor,
-            currentRepresentation,
-            count,
-            bandwidths = [],
-            i,
-            q = SwitchRequest.NO_CHANGE,
-            p = SwitchRequest.PRIORITY.DEFAULT,
-            totalBytesLength = 0;
+        lastRequest = null,
+        currentRequest = null,
+        downloadTime,
+        totalTime,
+        calculatedBandwidth,
+        currentBandwidth,
+        latencyInBandwidth,
+        switchUpRatioSafetyFactor,
+        currentRepresentation,
+        count,
+        bandwidths = [],
+        i,
+        q = SwitchRequest.NO_CHANGE,
+        p = SwitchRequest.PRIORITY.DEFAULT,
+        totalBytesLength = 0;
         latencyInBandwidth = true;
         switchUpRatioSafetyFactor = 1.5;
+        
+        
+        let lastSegmentUrl = requests[requests.length - 1]["url"];
+        
+        // console.log("🚀 ~ file: FOVEditRule.js:71 ~ getMaxIndex ~ lastSegment", lastSegmentUrl);
+        console.log("🚀 ~ file: FOVEditRule.js:55 ~ getMaxIndex ~ segmentWithEdit", segmentWithEdit)
+        
+        const re = /seg-(\d+).m4s/gm;
+
+        let lastSegmentNumber = re.exec(lastSegmentUrl);
+        console.log("🚀 ~ file: FOVEditRule.js:75 ~ getMaxIndex ~ lastSegmentNumber", lastSegmentNumber);
+        
+
         // console.log("[CustomRules][" + mediaType + "][FOVEditRule] Checking download ratio rule... (current = " + current + ")");
 
         if (!requests) {
@@ -186,17 +212,40 @@ function FOVEditRuleClass() {
         // Faces que não estão sendo vísiveis, pior qualidade
         // O que fazer quando houver uma edição programada? Precisa ver qual o segmento que está sendo requisitado
 
+        // Fazer a verificação de quantas vezes a face com pouca qualidade estava bem visível. (>50%)
 
         var info = abrController.getSettings().info;
 
         // console.log("info", info)
-
-        let visible_faces = $scope.get_visible_faces(center_viewport_x, center_viewport_y);
         // console.log("$visible_faces", visible_faces);
-        // console.log("center_viewport_x, center_viewport_y", center_viewport_x, center_viewport_y)
-        let predicted_viewport = $scope.predict_center_viewport(1);
+        // console.log("center_viewport_x, center_viewport_y", center_viewport_x, center_viewport_y);
+
+        let predicted_viewport = $scope.predict_center_viewport(frameRate);
         // console.log("predicted_viewport", predicted_viewport);
         // console.log("FRAME NUMBER", $scope.frameNumber.get());
+        currentSegmentNumber = +lastSegmentNumber[1] && +lastSegmentNumber[1] + 1;
+
+        let index_dist_nearest_roi;
+
+        let predict_center_viewport_x = predicted_viewport[0];
+        let predict_center_viewport_y = predicted_viewport[1];
+
+        if (currentSegmentNumber == segmentWithEdit){
+           let result = getNearestRegionOfInterest(predict_center_viewport_x, editInfo);
+           if (result){
+               index_dist_nearest_roi = result[2];
+
+               let nearest_region_of_interest = editInfo["region_of_interest"][index_dist_nearest_roi]["ROI_theta"];
+               let roi_x_radians = convert_normalized_to_radians(nearest_region_of_interest);
+               let roi_viewport = [roi_x_radians, predict_center_viewport_y];
+
+               return computedQuality(info, q, roi_viewport, bandwidths, $scope);
+            }
+            
+            next_edit++;
+            
+        }
+
         return computedQuality(info, q, predicted_viewport, bandwidths, $scope);
 
     }
@@ -210,17 +259,7 @@ function FOVEditRuleClass() {
         let predicted_visible_faces = $scope.get_visible_faces(predicted_viewport[0], predicted_viewport[1]);
 
         // console.log("predicted_visible_faces", predicted_visible_faces);
-        let isFaceVisible = false;
-        let percentageVisibleFace;
-        for (face in predicted_visible_faces){
-            
-            if (face.includes(info.face) ){
-                isFaceVisible = true;
-                percentageVisibleFace = predicted_visible_faces[face];
-                break;
-            }
-
-        }
+        let [isFaceVisible, percentageVisibleFace] = isFaceVisibleOnVP(info, predicted_visible_faces);
 
         if (isFaceVisible){
             // console.log("FACE ", info.face, "IS VISIBLE AND ITS PERCENTAGE IS ", percentageVisibleFace);
@@ -255,6 +294,104 @@ function FOVEditRuleClass() {
 
         return switchRequest;  
     }
+
+function isFaceVisibleOnVP(info, center_viewport) {
+
+    let isFaceVisible = false;
+    let percentageVisibleFace;
+    for (face in center_viewport){
+        
+        if (face.includes(info.face) ){
+            isFaceVisible = true;
+            percentageVisibleFace = center_viewport[face];
+            break;
+        }
+
+    }
+    return [isFaceVisible, percentageVisibleFace];
+
+}
+
+function getNearestRegionOfInterest(CvpXRadians, editInfo)
+    {
+        let abs_dist_nearest_roi = Infinity;
+        let dist_nearest_roi;
+        let index_dist_nearest_roi = 0;
+
+        console.log("editInfo['region_of_interest']",editInfo["region_of_interest"]);
+
+        for (let i in editInfo["region_of_interest"])
+        {
+            let ROIXRadians = convert_normalized_to_radians(editInfo["region_of_interest"][i]["ROI_theta"]);
+            
+            let CvpXOpositeRadians = CvpXRadians > 0 ? CvpXRadians - Math.PI : CvpXRadians + Math.PI;
+            // let getRotationDirecition = CvpXRadians > 0 ? getRotationDirecitionByNegativeCvp() : getRotationDirecitionByPositiveCvp();
+            
+            let curr_dist_roi = getSphereRotation(CvpXRadians, CvpXOpositeRadians, ROIXRadians);
+            
+            if (Math.abs(curr_dist_roi) < abs_dist_nearest_roi){
+                index_dist_nearest_roi = i;
+                abs_dist_nearest_roi = Math.abs(curr_dist_roi);		
+                dist_nearest_roi = curr_dist_roi;
+                
+            }
+            
+        }
+        console.log("🚀 ~ file: FOVEditRule.js:318 ~ FOVEditRuleClass ~ abs_dist_nearest_roi", abs_dist_nearest_roi)
+        return [abs_dist_nearest_roi, dist_nearest_roi, index_dist_nearest_roi];
+    }
+
+function getSphereRotation(CvpXRadians, CvpXOpositeRadians, ROIXRadians)
+    {
+        // //console.log("ROIXRadians " + ROIXRadians);
+        // //console.log("CvpXOpositeRadians " + CvpXOpositeRadians);
+        // //console.log("CvpXRadians " + CvpXRadians);
+        if ((CvpXRadians > 0 && ROIXRadians > 0) || (CvpXRadians < 0 && ROIXRadians < 0))
+        {
+            // //console.log("CvpXRadians and ROIXRadians in the same quadrant")
+            return ROIXRadians - CvpXRadians;
+        }
+        
+        if (CvpXOpositeRadians > 0)
+        {
+
+            // CvpXRadians is negative and ROIXRadians is positive
+            if (CvpXOpositeRadians < ROIXRadians)
+            {
+                //Rotates to the left
+                // //console.log("CvpXRadians is negative and ROIXRadians is positive Rotates to the left")
+                return -1*((Math.PI + CvpXRadians) + (Math.PI - ROIXRadians));
+            }
+            else
+            {
+                //Rotates to the right
+                // //console.log("CvpXRadians is negative and ROIXRadians is positive Rotates to the right")
+                return ROIXRadians - CvpXRadians;
+            }
+        }
+        else
+        {
+            // CvpXRadians is positive and ROIXRadians is negative
+            
+            if (CvpXOpositeRadians < ROIXRadians)
+            {
+                //Rotates to the left
+                // //console.log("CvpXRadians is positive and ROIXRadians is negative Rotates to the left")
+                return -1*(CvpXRadians - ROIXRadians);
+            }
+            else
+            {
+                //Rotates to the right
+                // //console.log("CvpXRadians is positive and ROIXRadians is negative Rotates to the right")
+                return (Math.PI - CvpXRadians) + (Math.PI + ROIXRadians);
+            }
+            
+        }
+    }
+
+function convert_normalized_to_radians(cvp_norm) {
+    return 2*Math.PI*cvp_norm - Math.PI;
+};
 
     instance = {
         getMaxIndex: getMaxIndex,

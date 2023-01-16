@@ -47,7 +47,8 @@ app.controller('HomeController', function($scope) {
       //// Global variables for storage
       $scope.players = [];  // Container for players, which is easy for us to operate in them.
       $scope.playerCount = 0;
-      $scope.videoFrameRate = 30;
+      //Value will be fullfil on the dynamincEdit File on the beginning of the playback
+      $scope.videoFrameRate = 0;
       $scope.frameNumber = 0;
       $scope.buffer_empty_flag = [];  // Flags for players, showing whether the player is frozen or not.
       $scope.lon = 90, $scope.lat = 0;  // Longitude and latitude in spherical coordinates.
@@ -86,7 +87,7 @@ app.controller('HomeController', function($scope) {
           value:"https://192.168.15.92/Guitar_Man/aframeVP907.json"
       };
       $scope.optionButton = "Show Options";  // Save the state of option button
-      $scope.selectedRule = "FOVRule";  // Save the selected media source
+      $scope.selectedRule = "FOVEditRule";  // Save the selected media source
       $scope.stats = [];  // Save all the stats need to put on the charts
       $scope.chartData_quality = [];  // Save the qualtiy data need to put on the charts
       $scope.chartData_buffer = [];  // Save the buffer data need to put on the charts
@@ -270,11 +271,11 @@ app.controller('HomeController', function($scope) {
 
       $scope.center_viewport_x = []; // Array for arrays with x axis center of the viewport with sample size given in viewportUtils.js
       $scope.center_viewport_y = []; // Array for arrays with y axis center of the viewport with sample size given in viewportUtils.js
-      $scope.time_array = []; // time Array with the last times with the sample size given in the viewportUtils.js
+      $scope.frame_array = []; // time Array with the last times with the sample size given in the viewportUtils.js
       $scope.current_center_viewport_x = 0;
       $scope.current_center_viewport_y = 0;
 
-      $scope.predict_center_viewport = function (prediction_seconds) {
+      $scope.predict_center_viewport = function (prediction_frame) {
 
         //############## LINEAR REGRESSION ##############//
             
@@ -316,15 +317,15 @@ app.controller('HomeController', function($scope) {
 			return cvp_radians.map( cvp => cvp/(2*Math.PI) + 0.5);
 		};
 
-        if ($scope.time_array.length < 10)
-            return;
+        if ($scope.frame_array.length < $scope.videoFrameRate)
+        return;
 
-        lr_width = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_x), $scope.time_array);
+        lr_width = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_x), $scope.frame_array);
     
-        lr_height = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_y), $scope.time_array);
+        lr_height = linearRegression(convert_radians_to_normalized_from_array($scope.center_viewport_y), $scope.frame_array);
 
-        new_yaw = linear_function(lr_width.slope, lr_width.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
-        new_pitch = linear_function(lr_height.slope, lr_height.intercept, $scope.time_array[$scope.time_array.length -1] + prediction_seconds);
+        new_yaw = linear_function(lr_width.slope, lr_width.intercept, $scope.frame_array[$scope.frame_array.length -1] + prediction_frame);
+        new_pitch = linear_function(lr_height.slope, lr_height.intercept, $scope.frame_array[$scope.frame_array.length -1] + prediction_frame);
         
         new_yaw = convert_normalized_to_radians(new_yaw);
         new_pitch = convert_normalized_to_radians(new_pitch);

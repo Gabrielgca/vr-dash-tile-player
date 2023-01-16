@@ -13,6 +13,8 @@
 		<script src="../app/lib/angular/angular-resource.min.js"></script>
 		<script src="../app/lib/angular/angular-flot.js"></script>
 		<script src="../app/lib/angular/angular-route.js"></script>
+		
+		<script src="../video_frame/VideoFrame.min.js"></script>
 
 		<script src="../aframe/dist/aframe-master.js"></script>
 		<script src="../viewport_utils/faceStructure.js"></script>
@@ -52,6 +54,22 @@
 				}
 			//Input the face map so that it can be used when some edit happens
 			camera_reference.faceStructure = faceStructureAux;
+			
+			camera_reference.videoFrames = {}
+
+			// for (let i = 0; i < camera_reference.children.length; i++){
+				console.log("i video_0");
+
+				let videoFrame = VideoFrame({
+                        id : "video_0" ,
+                        frameRate: FrameRates.high,
+                        callback : function(response) {
+                            console.log('callback response: ' + response);
+                        }
+                        });
+				camera_reference.videoFrames["video_0"] = videoFrame;
+			// }
+			console.log("camera_reference", camera_reference);
 		},
 		tick: function(t,dt)
 		{
@@ -100,53 +118,53 @@
 
 					  
 				<a-entity id="ent_video_0"
-						material="color:red; shader: flat; src: #video_0"
+						material=" shader: flat; src: #video_0"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="240 0 0"
 						rotation="0 -90 0"
 						visible="true">
 				</a-entity>
 				<a-entity id="ent_video_1"
-						material="color:green;shader: flat; src: #video_1"
+						material="shader: flat; src: #video_1"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="-240 0 0"
 						rotation="0 90 0"
 						visible="true">
 				</a-entity>
 				<a-entity id="ent_video_2"
-						material="color:blue;shader: flat; src: #video_2"
+						material="shader: flat; src: #video_2"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="0 240 0"
 						rotation="90 0 0"
 						visible="true">
 				</a-entity>
 				<a-entity id="ent_video_3"
-						material="color:yellow;shader: flat; src: #video_3"
+						material="shader: flat; src: #video_3"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="0 -240 0"
 						rotation="-90 0 0"
 						visible="true">
 				</a-entity>
 				<a-entity id="ent_video_4"
-						material="color:purple;shader: flat; src: #video_4"
+						material="shader: flat; src: #video_4"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="0 0 -240"
 						rotation="0 0 0"
 						visible="true">
 				</a-entity>
 				<a-entity id="ent_video_5"
-						material="color:gray;shader: flat; src: #video_5"
+						material="shader: flat; src: #video_5"
 						geometry="primitive: plane; width: 480; height: 480;"
 						position="0 0 240"
 						rotation="0 180 0"
 						visible="true">
 				</a-entity>
-<!-- 	 			<a-entity material="shader: flat; src: #audio"
-						geometry="primitive: plane; width: 1; height: 1;"
-						position="0 0 0"
-						rotation="0 0 0"
-						visible="true">
-				</a-entity> -->
+	<!-- 	 			<a-entity material="shader: flat; src: #audio"
+							geometry="primitive: plane; width: 1; height: 1;"
+							position="0 0 0"
+							rotation="0 0 0"
+							visible="true">
+					</a-entity> -->
 
 			</a-entity>
 			
