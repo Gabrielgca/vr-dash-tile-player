@@ -44,15 +44,19 @@ function FOVEditRuleClass() {
         var $scope = angular.element(appElement).scope();
 
         var currentFrame = $scope.frameNumber.get();
+        var currentBuffer = dashMetrics.getCurrentBufferLevel('video');
         
-        
+
         let frameRate = $scope.videoFrameRate;
 
         let editInfoJSON = $scope.contents.edits.edit;
         let editInfo = editInfoJSON[next_edit];
         let nextEditedFrame = editInfo && editInfo["frame"];
         let segmentWithEdit = nextEditedFrame && Math.ceil(nextEditedFrame / frameRate);
-        
+        // Segment being displayed on video
+        let currentSegmentPlayback = currentFrame && Math.ceil(currentFrame / frameRate)
+        // Current segment being requested
+        let currentSegmentNumber;
         let requests = dashMetrics.getHttpRequests(mediaType),
         lastRequest = null,
         currentRequest = null,
@@ -76,12 +80,12 @@ function FOVEditRuleClass() {
         let lastSegmentUrl = requests[requests.length - 1]["url"];
         
         // console.log("🚀 ~ file: FOVEditRule.js:71 ~ getMaxIndex ~ lastSegment", lastSegmentUrl);
-        console.log("🚀 ~ file: FOVEditRule.js:55 ~ getMaxIndex ~ segmentWithEdit", segmentWithEdit)
+        // console.log("🚀 ~ file: FOVEditRule.js:55 ~ getMaxIndex ~ segmentWithEdit", segmentWithEdit)
         
         const re = /seg-(\d+).m4s/gm;
 
         let lastSegmentNumber = re.exec(lastSegmentUrl);
-        console.log("🚀 ~ file: FOVEditRule.js:75 ~ getMaxIndex ~ lastSegmentNumber", lastSegmentNumber);
+        // console.log("🚀 ~ file: FOVEditRule.js:75 ~ getMaxIndex ~ lastSegmentNumber", lastSegmentNumber);
         
 
         // console.log("[CustomRules][" + mediaType + "][FOVEditRule] Checking download ratio rule... (current = " + current + ")");
@@ -130,7 +134,7 @@ function FOVEditRuleClass() {
         // Take average bandwidth over 5 requests
         count = 1;
         // console.log("requests LENGTH", requests.length)
-        while (i >= 0 && count <= 5) {
+        while (i >= 0 && count < 5) {
             currentRequest = requests[i];
 
             if (currentRequest._tfinish && currentRequest.trequest && currentRequest.tresponse && currentRequest.trace && currentRequest.trace.length > 0) {
@@ -216,19 +220,33 @@ function FOVEditRuleClass() {
 
         var info = abrController.getSettings().info;
 
-        // console.log("info", info)
-        // console.log("$visible_faces", visible_faces);
-        // console.log("center_viewport_x, center_viewport_y", center_viewport_x, center_viewport_y);
 
-        let predicted_viewport = $scope.predict_center_viewport(frameRate);
-        // console.log("predicted_viewport", predicted_viewport);
+        // console.log("predictedViewport", predictedViewport);
         // console.log("FRAME NUMBER", $scope.frameNumber.get());
         currentSegmentNumber = +lastSegmentNumber[1] && +lastSegmentNumber[1] + 1;
 
         let index_dist_nearest_roi;
 
-        let predict_center_viewport_x = predicted_viewport[0];
-        let predict_center_viewport_y = predicted_viewport[1];
+        let predictWindow = currentSegmentNumber -  currentSegmentPlayback;
+
+
+        // console.log("info", info)
+        // console.log("$visible_faces", visible_faces);
+        // console.log("center_viewport_x, center_viewport_y", center_viewport_x, center_viewport_y);
+        let predictedViewport;
+        if (predictWindow >=3){
+            // RIDGE REGRESSION
+            predictedViewport = $scope.predict_center_viewport(predictWindow*frameRate, ridge = true);
+        }
+        else {
+            // LINEAR REGRESSION
+            predictedViewport = $scope.predict_center_viewport(predictWindow*frameRate);
+        }
+
+        let predict_center_viewport_x = predictedViewport[0];
+        let predict_center_viewport_y = predictedViewport[1];
+
+        console.log("currentSegmentPlayback: ", currentSegmentPlayback,"currentSegmentNumber: ", currentSegmentNumber, "Predict windows: ", currentSegmentNumber -  currentSegmentPlayback);
 
         if (currentSegmentNumber == segmentWithEdit){
            let result = getNearestRegionOfInterest(predict_center_viewport_x, editInfo);
@@ -246,19 +264,18 @@ function FOVEditRuleClass() {
             
         }
 
-        return computedQuality(info, q, predicted_viewport, bandwidths, $scope);
+        return computedQuality(info, q, predictedViewport, bandwidths, $scope);
 
     }
 
 
-    function computedQuality (info, maxQuality,  predicted_viewport, bandwidths, $scope) {
+    function computedQuality (info, maxQuality,  predictedViewport, bandwidths, $scope) {
         let factory = dashjs.FactoryMaker;
         let SwitchRequest = factory.getClassFactoryByName('SwitchRequest');
         const switchRequest = SwitchRequest(context).create();
 
-        let predicted_visible_faces = $scope.get_visible_faces(predicted_viewport[0], predicted_viewport[1]);
+        let predicted_visible_faces = $scope.get_visible_faces(predictedViewport[0], predictedViewport[1]);
 
-        // console.log("predicted_visible_faces", predicted_visible_faces);
         let [isFaceVisible, percentageVisibleFace] = isFaceVisibleOnVP(info, predicted_visible_faces);
 
         if (isFaceVisible){
@@ -267,13 +284,12 @@ function FOVEditRuleClass() {
             if (percentageVisibleFace < 0.10){
                 switchRequest.quality = maxQuality - 1;
                 switchRequest.reason = 'Face is slightly visible. Getting one quality lower than the max quality possible';
-                switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
             }
             else {
                 switchRequest.quality = maxQuality;
-                switchRequest.reason = 'Face is visible. Selecting high quality possible.';
-                switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
+                switchRequest.reason = 'Face is visible. Selecting high quality possible.';      
             }
+            switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
         }
         else {
             // console.log("FACE ", info.face, "IS NOT VISIBLE. SELECTING THE LOWEST QUALITY.");
@@ -318,7 +334,7 @@ function getNearestRegionOfInterest(CvpXRadians, editInfo)
         let dist_nearest_roi;
         let index_dist_nearest_roi = 0;
 
-        console.log("editInfo['region_of_interest']",editInfo["region_of_interest"]);
+        // console.log("editInfo['region_of_interest']",editInfo["region_of_interest"]);
 
         for (let i in editInfo["region_of_interest"])
         {
@@ -337,7 +353,7 @@ function getNearestRegionOfInterest(CvpXRadians, editInfo)
             }
             
         }
-        console.log("🚀 ~ file: FOVEditRule.js:318 ~ FOVEditRuleClass ~ abs_dist_nearest_roi", abs_dist_nearest_roi)
+        // console.log("🚀 ~ file: FOVEditRule.js:318 ~ FOVEditRuleClass ~ abs_dist_nearest_roi", abs_dist_nearest_roi)
         return [abs_dist_nearest_roi, dist_nearest_roi, index_dist_nearest_roi];
     }
 
