@@ -29,19 +29,20 @@ let last_frame_with_edit = 0;
     
 function dynamicEditClass () {
         
+    [sphere_reference, camera_reference ] = getIframeEntities('frame');
+    
+    var appElement = document.querySelector('[ng-controller=DashController]');
+    var $scope = angular.element(appElement).scope();
+    editEditInfoJSON = $scope.contents.edits.edit;
+    
+    if ( $scope.frameNumber == 0) {
+        $scope.frameNumber = camera_reference.videoFrames["video_0"];
+        $scope.videoFrameRate = camera_reference.videoFrames["video_0"]["frameRate"];
+    }
+    
     if (ENABLE_EDIT){
-        [sphere_reference, camera_reference ] = getIframeEntities('frame');
-
-        var appElement = document.querySelector('[ng-controller=DashController]');
-        var $scope = angular.element(appElement).scope();
-        editEditInfoJSON = $scope.contents.edits.edit;
-
-        if ( $scope.frameNumber == 0) {
-            $scope.frameNumber = camera_reference.videoFrames["video_0"];
-            $scope.videoFrameRate = camera_reference.videoFrames["video_0"]["frameRate"];
-        }
-
-
+    
+    
         var currentFrame = $scope.frameNumber.get();
         // console.log("🚀 ~ file: dynamicEdit.js:46 ~ dynamicEditClass ~ currentFrame", currentFrame)
         var currentTime = $scope.normalizedTime;
@@ -49,9 +50,9 @@ function dynamicEditClass () {
         var normCurrentTime = Math.ceil(currentTime);
         ////console.log("FROM DYNAMIC EDIT")
         let CvpDegree = sphere_reference["head_movement_degree"];
-        // let CvpRadians = sphere_reference["head_movement_radians"];
+        let CvpRadians = sphere_reference["head_movement_radians"];
 
-        let CvpRadians = $scope.predict_center_viewport(frameRate);
+        // let CvpRadians = $scope.predict_center_viewport(frameRate);
         
         
         let hasEditScheduledValue = false;
@@ -64,7 +65,9 @@ function dynamicEditClass () {
             
             // Only use the X axis for the edit
             CvpXRadians = CvpRadians[0];
+            $scope.yaw = CvpRadians[0];
             CvpYRadians = CvpRadians[1];
+            $scope.pitch = CvpRadians[1];
             
             // console.log("🚀 ~ file: dynamicEdit.js:60 ~ dynamicEditClass ~ CvpXRadians", CvpXRadians);
             // console.log("🚀 ~ file: dynamicEdit.js:62 ~ dynamicEditClass ~ CvpYRadians", CvpYRadians);
@@ -123,14 +126,14 @@ function dynamicEditClass () {
                     
 
                     if (snapCutRotation != undefined){
-                        radiansRotationValue = snapCutRotation;
-                        editHappenedValue = true;
+                        $scope.radiansRotationValue = snapCutRotation;
+                        $scope.editHappenedValue = true;
                     }
                 }
     
                 if (isRotating){
-                    editTypeValue = GRADUAL_EDIT;
-                    hasEditScheduledValue = true;
+                    $scope.editTypeValue = GRADUAL_EDIT;
+                    $scope.hasEditScheduledValue = true;
 
                     const quaternion = new THREE.Quaternion();
                     
@@ -198,30 +201,30 @@ function dynamicEditClass () {
                     console.log("START INSTANT SNAPCUT");
                     console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
                     console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrame", currentFrame)
-                    editTypeValue = INSTANT_EDIT;
-                    hasEditScheduledValue = true;
+                    $scope.editTypeValue = INSTANT_EDIT;
+                    $scope.hasEditScheduledValue = true;
 
                     let snapCutRotation = handleSnapCut(CvpXRadians);
                     last_frame_with_edit = currentFrame;
                     if (snapCutRotation != undefined){
-                        radiansRotationValue = snapCutRotation;
-                        editHappenedValue = true;
+                        $scope.radiansRotationValue = snapCutRotation;
+                        $scope.editHappenedValue = true;
                     }
                     next_edit++;
                 }
             }
 
-            let frame_data = {
-                frame: Math.ceil(currentFrame),
-                yaw: Number.parseFloat(CvpRadians[0]).toFixed(4),
-                pitch: Number.parseFloat(CvpRadians[1]).toFixed(4),
-                hasEditScheduled: hasEditScheduledValue,
-                editHappened: editHappenedValue,
-                radiansRotation: radiansRotationValue,
-                editType: editTypeValue
-            }
+            // let frame_data = {
+            //     frame: Math.ceil(currentFrame),
+            //     yaw: Number.parseFloat(CvpRadians[0]).toFixed(4),
+            //     pitch: Number.parseFloat(CvpRadians[1]).toFixed(4),
+            //     hasEditScheduled: hasEditScheduledValue,
+            //     editHappened: editHappenedValue,
+            //     radiansRotation: radiansRotationValue,
+            //     editType: editTypeValue
+            // }
             
-            $scope.json_output.push(frame_data);
+            // $scope.json_output.push(frame_data);
         }
 
 

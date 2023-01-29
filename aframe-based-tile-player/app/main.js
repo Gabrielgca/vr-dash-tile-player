@@ -177,9 +177,9 @@ app.controller('HomeController', function($scope) {
       $scope.requestDuration = 3000;  // [For computing total throughput] Set the duration we consider (ms)
       $scope.requestLayBack = 0;  // [For computing total throughput] Set the lay-back time for avoiding the on-going requests (ms)
       $scope.rotateRatio = 0.1148;  // [For focusing FOV] Set the ratio of rotating when switching the angle of view
-      $scope.playerBufferToKeep = 6;  // [For initializing mediaplayers] Allows you to modify the buffer that is kept in source buffer in seconds
-      $scope.playerStableBufferTime = 6;  // [For initializing mediaplayers] The time that the internal buffer target will be set to post startup/seeks (NOT top quality)
-      $scope.playerBufferTimeAtTopQuality = 10;  // [For initializing mediaplayers] The time that the internal buffer target will be set to once playing the top quality
+      $scope.playerBufferToKeep = 3;  // [For initializing mediaplayers] Allows you to modify the buffer that is kept in source buffer in seconds
+      $scope.playerStableBufferTime = 3;  // [For initializing mediaplayers] The time that the internal buffer target will be set to post startup/seeks (NOT top quality)
+      $scope.playerBufferTimeAtTopQuality = 3;  // [For initializing mediaplayers] The time that the internal buffer target will be set to once playing the top quality
       $scope.playerMinDrift = 0.02;  // [For initializing mediaplayers] The minimum latency deviation allowed
       $scope.lambdaQOE = 1.0;  // [For computing QoE] Value of the quality switches constant
       $scope.miuQOE = 4.3;  // [For computing QoE] Stall weight
@@ -274,11 +274,20 @@ app.controller('HomeController', function($scope) {
       $scope.frame_array = []; // time Array with the last times with the sample size given in the viewportUtils.js
       $scope.current_center_viewport_x = 0;
       $scope.current_center_viewport_y = 0;
+      $scope.yaw   = 0
+      $scope.pitch = 0
+      $scope.hasEditScheduledValue = false;
+      $scope.editHappenedValue = false;
+      $scope.radiansRotationValue = 0;
+      $scope.editTypeValue = "null";
 
-      $scope.predict_center_viewport = function (prediction_frame) {
-
+      // It uses both Linear Regression and Ridge Regression depending if the ridge input is used
+      $scope.predict_center_viewport = function (prediction_frame, ridge = false) {
+        
+        // if the ridge input is true than it will be done a Ridge Regression
+        // with the lambda as the ridge constant 
         //############## LINEAR REGRESSION ##############//
-            
+           
         function linear_function (a, b, x) {
             //consol.log("a: ", a, "b: " , b,  "x: ", x);
             return a*x + b;
@@ -292,6 +301,7 @@ app.controller('HomeController', function($scope) {
                 var sum_xy = 0;
                 var sum_xx = 0;
                 var sum_yy = 0;
+                var lambda = 0;
 
                 for (var i = 0; i < y.length; i++) {
 
@@ -302,10 +312,15 @@ app.controller('HomeController', function($scope) {
                         sum_yy += (y[i]*y[i]);
                 } 
 
-                lr['slope'] = (n * sum_xy - sum_x * sum_y) / (n*sum_xx - sum_x * sum_x);
-                lr['intercept'] = (sum_y - lr.slope * sum_x)/n;
-                lr['r2'] = Math.pow((n*sum_xy - sum_x*sum_y)/Math.sqrt((n*sum_xx-sum_x*sum_x)*(n*sum_yy-sum_y*sum_y)),2);
-
+                if (ridge){
+                    // Using a lambda that will always be 5% of the sum_xx variable so it can follow the expression 
+                    // when it increases its values; 
+                    lambda = sum_xx * 0.05;
+                }
+                lr['slope'] = (n * sum_xy - sum_x * sum_y) / (n*(sum_xx + lambda) - sum_x * sum_x);
+                lr['intercept'] = ((sum_xx + lambda)*sum_y - sum_x*sum_xy) / (n*(sum_xx + lambda) - sum_x * sum_x)
+                // lr['intercept'] = (sum_y - lr.slope * sum_x)/n;
+                // lr['r2'] = Math.pow((n*sum_xy - sum_x*sum_y)/Math.sqrt((n*sum_xx-sum_x*sum_x)*(n*sum_yy-sum_y*sum_y)),2);
                 return lr;
         }
 
@@ -832,7 +847,7 @@ app.controller('HomeController', function($scope) {
                               }
                           }
                       });
-  
+                      
                       //IMPORTANT - Adds the ABR algorithm to be used
                       // More info in https://cdn.dashjs.org/latest/jsdoc/module-MediaPlayer.html
                       // Add my custom quality switch rule, look at [].js to know more about the structure of a custom rule
@@ -868,7 +883,7 @@ app.controller('HomeController', function($scope) {
                       $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["BUFFER_LOADED"], buffer_loaded_event);
   
                       $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["CAN_PLAY"], can_play_event);
-                    //   $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], download_csv);
+                      $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], download_csv);
   
                       // Initializing
                       $scope.players[$scope.playerCount].initialize(video, url, false);
@@ -880,6 +895,7 @@ app.controller('HomeController', function($scope) {
                       $scope.playerContentScore[$scope.playerCount] = NaN;
                       $scope.playerBitrateList[$scope.playerCount] = [];
                       $scope.playerCatchUp[$scope.playerCount] = false;
+
   
                       $scope.playerCount++;
                   }
@@ -922,7 +938,6 @@ app.controller('HomeController', function($scope) {
           // Set the fastest mediaplayer's timeline as the normalized time
           requestAnimationFrame(setNormalizedTime);
 
-          requestAnimationFrame(printFrames);
           //setInterval(setNormalizedTime, $scope.IntervalOfSetNormalizedTime);
           // Compute total throughput according to recent HTTP requests
           setInterval(computetotalThroughput, $scope.IntervalOfComputetotalThroughput);
@@ -949,6 +964,7 @@ app.controller('HomeController', function($scope) {
           requestAnimationFrame(update_center_viewport);
           //setInterval(update_center_viewport, $scope.IntervalOfDynamicEdit);
 
+          requestAnimationFrame(updateOutputFile);
 
 
           document.getElementById('Load').style = "display: none;";
@@ -956,17 +972,32 @@ app.controller('HomeController', function($scope) {
       };
       
 
+      function updateOutputFile (){
+        let numPlayer = $scope.players.length;
+        let stringListQuality = "[";
+        //Gets only de videos, not the audio
+        for (let i = 0 ; i < numPlayer - 1; i++){
+            stringListQuality += $scope.players[i].getQualityFor('video') + ";";
+        }
+        stringListQuality = stringListQuality.slice(0,stringListQuality.length - 1);
+        stringListQuality += "]"
+        let frame_data = {
+            frame: $scope.frameNumber != 0 ? $scope.frameNumber.get() : 0,
+            totalThroughput: $scope.totalThroughput,
+            listQuality: stringListQuality,
+            yaw: Number.parseFloat($scope.yaw).toFixed(4),
+            pitch: Number.parseFloat($scope.pitch).toFixed(4),
+            hasEditScheduled: $scope.hasEditScheduledValue,
+            editHappened: $scope.editHappenedValue,
+            radiansRotation: $scope.radiansRotationValue,
+            editType: $scope.editTypeValue
+        }
 
-      function printFrames () {
-        var frameObj = document.getElementById('frame');
-        var scene = frameObj.contentWindow.document.querySelector('a-scene');
-        var camera = scene.camera;
-        var camera_reference = scene.children[2];
+        $scope.json_output.push(frame_data);
 
-
-        requestAnimationFrame(printFrames);
-
+        requestAnimationFrame(updateOutputFile);
       }
+
       // Set the fastest mediaplayer's timeline as the normalized time
       function setNormalizedTime() {
           $scope.normalizedTime = $scope.players[0].time();
