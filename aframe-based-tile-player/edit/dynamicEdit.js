@@ -81,7 +81,7 @@ function dynamicEditClass () {
                 
                 let currentFrameEdit = editEditInfoJSON[next_edit] ? editEditInfoJSON[next_edit]["frame"] : 0;
                 let frameStartGradualRotation = Math.ceil(currentFrameEdit - (EDIT_TIME * 2 * frameRate));
-                let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 1 * frameRate));
+                let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 0.5 * frameRate));
                 // console.log("🚀 ~ file: dynamicEdit.js:79 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
                 // console.log("🚀 ~ file: dynamicEdit.js:80 ~ dynamicEditClass ~ frameStartGradualRotation", frameStartGradualRotation)
                 // console.log("🚀 ~ file: dynamicEdit.js:81 ~ dynamicEditClass ~ frameStopGradualRotation", frameStopGradualRotation)
@@ -91,10 +91,17 @@ function dynamicEditClass () {
                 if (currentFrame >= frameStartGradualRotation  && enableRotation ){
                     console.log("START ROTATION");
                     
-                    [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(CvpXRadians);
+                    //Predict where the user will be looking on the Edit frame to know if the edit will happen or not
+
+                    let predictedViewport = $scope.predict_center_viewport(currentFrameEdit - currentFrameEdit);
+                    let predict_center_viewport_x = predictedViewport[0];;
+
+                    [dist_nearest_roi_gradual, direction,] = getNearestRegionOfInterest(predict_center_viewport_x);
                     
+
+
                     // if the RoI is under 30° from the current center of the viewport, it is not needed to do an edit
-                    if (dist_nearest_roi_gradual >= 0.5235){
+                    if (dist_nearest_roi_gradual >= 0.5235 ){
                         isRotating = true;
                     }
 
@@ -187,6 +194,11 @@ function dynamicEditClass () {
                     enableFade = true;
                     fadeStarted = false;
                     doIt = true;
+
+                    $scope.editTypeValue = "null";
+                    $scope.radiansRotationValue = 0;
+                    $scope.hasEditScheduledValue = false;
+                    $scope.editHappenedValue = false;
                 }
             }
         
