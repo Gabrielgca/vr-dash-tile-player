@@ -4,7 +4,7 @@ Noted that this project has stopped maintaining except for necessary bug fixes a
 
 This project is an extension of its previous version and leverages its usability implementing more functionalities, such as:
 1. Integration with video edits. (Snap-change and Fade-rotation implemented)
-2. Viewport prediction module.
+2. Viewport prediction module. (Linear and Ridge Regression)
 3. Center of the viewport track for HMDs.
 4. New approach the retrieve visible faces and its visibility percentage to be used on ABR algorithms.
 
