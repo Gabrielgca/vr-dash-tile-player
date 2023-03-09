@@ -104,7 +104,7 @@ ffmpeg -i ERP_video.mp4 -vn -acodec copy -y audio.mp4
 mp4fragment --fragment-duration 1000 audio.mp4 f_audio.mp4
 mp4dash --output-dir=audio --mpd-name=audio.mpd f_audio.mp4
 ```
-8. Here we finish all the steps. A JSON file would be necessary if you want to play it more convenient in our platform. If audio or ssresults (results from sensitive segmentation) is unavailable, please change it as ```"audio": ""``` or ```"ssresults": ""```. If one wants to use edits on the video, please fill in the ```"edit": ""``` key with the ```frame``` that you want it to happpen, the ```type``` (```instant``` for Snap-change and ```gradual``` for Fade-rotation), and the normalized region of interest of the edit.
+8. Here we finish all the steps. A JSON file would be necessary if you want to play it more convenient in our platform. If audio or ssresults (results from sensitive segmentation) is unavailable, please change it as ```"audio": ""``` or ```"ssresults": ""```. If one wants to use edits on the video, please fill in the ```edit``` key with the ```frame``` that you want it to happpen, the ```type``` (```instant``` for Snap-change and ```gradual``` for Fade-rotation), and the normalized region of interest of the edit.
 ```
 {
 	"baseUrl": "[Your files' location]",
