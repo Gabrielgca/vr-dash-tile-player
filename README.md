@@ -1,6 +1,12 @@
-# vr-dash-tile-player
+# vr-dash-tile-player-edit
 
 Noted that this project has stopped maintaining except for necessary bug fixes and special updates. We would always let the issues open and welcome all to come up with questions. Thanks for all your support and inspiration!
+
+This project is an extension of its previous version and leverages its usability implementing more functionalities, such as:
+1. Integration with video edits. (Snap-change and Fade-rotation implemented)
+2. Viewport prediction module. (Linear and Ridge Regression)
+3. Center of the viewport track for HMDs.
+4. New approach the retrieve visible faces and its visibility percentage to be used on ABR algorithms.
 
 ## Tools and Frameworks we use
 
@@ -12,10 +18,11 @@ Noted that this project has stopped maintaining except for necessary bug fixes a
 
 ## ABR Algorithms we use
 
-1. FOVRule - Choose the bitrates for each tile according to FOV.
-2. HighestBitrateRule - Always choose the highest bitrate for each tile.
-3. FOVContentRule - Choose the bitrates for each tile according to FOV and contents.
-4. DefaultRule - Using default ABR rules by dash.js (observing each tile's stats independently). 
+1. FOVEditRule - Choose the bitrate according to the FOV and Edit information.
+2. FOVRule - Choose the bitrates for each tile according to FOV.
+3. HighestBitrateRule - Always choose the highest bitrate for each tile.
+4. FOVContentRule - Choose the bitrates for each tile according to FOV and contents.
+5. DefaultRule - Using default ABR rules by dash.js (observing each tile's stats independently). 
 
 Default: Using FOVRule as default. If need please change the config in HTML page.
 
@@ -97,7 +104,7 @@ ffmpeg -i ERP_video.mp4 -vn -acodec copy -y audio.mp4
 mp4fragment --fragment-duration 1000 audio.mp4 f_audio.mp4
 mp4dash --output-dir=audio --mpd-name=audio.mpd f_audio.mp4
 ```
-8. Here we finish all the steps. A JSON file would be necessary if you want to play it more convenient in our platform. If audio or ssresults (results from sensitive segmentation) is unavailable, please change it as ```"audio": ""``` or ```"ssresults": ""```:
+8. Here we finish all the steps. A JSON file would be necessary if you want to play it more convenient in our platform. If audio or ssresults (results from sensitive segmentation) is unavailable, please change it as ```"audio": ""``` or ```"ssresults": ""```. If one wants to use edits on the video, please fill in the ```edit``` key with the ```frame``` that you want it to happpen, the ```type``` (```instant``` for Snap-change and ```gradual``` for Fade-rotation), and the normalized region of interest of the edit.
 ```
 {
 	"baseUrl": "[Your files' location]",
@@ -115,6 +122,21 @@ mp4dash --output-dir=audio --mpd-name=audio.mpd f_audio.mp4
 	],
 	"audio": "audio/audio.mpd",
 	"ssresults": "ssresults.json"
+	"edits":
+		{
+		   "edit" : [
+		      {
+		         "frame" : 2080,
+		         "type": "gradual",
+		         "region_of_interest": [                                                                 
+		            {
+		            "rank": 1,
+		            "ROI_theta": 0.267
+		            }
+		         ]     
+		      }
+		   ]
+		}
 }
 ```
 
