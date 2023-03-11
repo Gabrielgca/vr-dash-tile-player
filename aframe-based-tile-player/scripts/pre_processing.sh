@@ -13,7 +13,7 @@ opts=$(getopt \
 ############################################################
 Help()
 {
-   echo "This script do the pre-process required to use the video into the VR-DASH-TILE-PLAYER"
+   echo "This script pre-process the video so that it can be played on the VR-DASH-TILE-PLAYER"
    echo
    echo "Syntax: $0 [<ARGS>] "
    echo
