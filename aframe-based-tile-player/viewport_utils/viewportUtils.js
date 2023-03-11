@@ -1,9 +1,8 @@
 
 //Viewport prediction_seconds Variables
-const nb_samples_viewport = 10;
 const center_viewport_x = [];
 const center_viewport_y = [];
-const time_array = [];
+const frame_array = [];
 
 let cvp_x;
 let cvp_y;
@@ -65,15 +64,16 @@ function update_center_viewport (){
                                 // console.log("appElement",appElement);
                                 // console.log("angular.element(appElement).scope()", angular.element(appElement).scope())
                                 var $scope = angular.element(appElement).scope();
-                                var currentTime = $scope.normalizedTime;
-        
-                                time_array.push(currentTime);
+                                var currentFrame = $scope.frameNumber.get();
+                                const nb_samples_viewport = $scope.videoFrameRate;
+                                
+                                frame_array.push(currentFrame);
                         
-                                if (time_array.length > nb_samples_viewport)
+                                if (frame_array.length > nb_samples_viewport)
                                 {
                                         center_viewport_x.shift();
                                         center_viewport_y.shift();
-                                        time_array.shift();
+                                        frame_array.shift();
                                 }
 
                                 $scope.center_viewport_x = center_viewport_x;
@@ -81,8 +81,10 @@ function update_center_viewport (){
                                 $scope.current_center_viewport_x = cvp_x_radians;
                                 $scope.current_center_viewport_y = cvp_y_radians;
 
-                                $scope.time_array = time_array;
-                                // console.log("VIEWPORT center_viewport_x", center_viewport_x)
+                                // console.log([cvp_x_radians,cvp_y_radians])
+
+                                $scope.frame_array = frame_array;
+                                //console.log("VIEWPORT center_viewport_x", center_viewport_x)
         
                         }
 
