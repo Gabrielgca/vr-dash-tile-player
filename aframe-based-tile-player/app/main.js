@@ -2,8 +2,6 @@ var app = angular.module('myapp', [
     'ngRoute'
   ]);
 
-  console.log("OLA DO ROUTERR!!")
-
 // Definindo Rotas
 app.config(function($routeProvider, $locationProvider){
   // Utilizando o HTML5 History API
@@ -42,8 +40,6 @@ app.controller('HomeController', function($scope) {
 
   app.controller('DashController', ['$scope','$interval', function ($scope, $interval) {
       //$interval(function () {}, 1);
-      console.log("OLAR DA MAIN!")
-      console.log("controller LOADED");
       //// Global variables for storage
       $scope.players = [];  // Container for players, which is easy for us to operate in them.
       $scope.playerCount = 0;
@@ -84,7 +80,7 @@ app.controller('HomeController', function($scope) {
   
       $scope.selectedItem = {  // Save the selected media source
           type:"json",
-          value:"https://192.168.15.92/Guitar_Man/aframeVP907.json"
+          value:"https://192.168.1.69/Guitar_Man/aframeVP907.json"
       };
       $scope.optionButton = "Show Options";  // Save the state of option button
       $scope.selectedRule = "FOVEditRule";  // Save the selected media source
@@ -289,7 +285,6 @@ app.controller('HomeController', function($scope) {
         //############## LINEAR REGRESSION ##############//
            
         function linear_function (a, b, x) {
-            //consol.log("a: ", a, "b: " , b,  "x: ", x);
             return a*x + b;
         }
             
@@ -372,7 +367,6 @@ app.controller('HomeController', function($scope) {
         var camera_reference = scene.children[2]; //camera_reference
 
         let faceStructureModified = camera_reference.faceStructure;
-        // console.log("faceStructure",faceStructure);
         var visibleObjects = {};
     
             if (camera && faceStructureModified)
@@ -404,8 +398,6 @@ app.controller('HomeController', function($scope) {
     
             }
     
-            // console.log("ACTUAL: ", visibleObjects);
-    
             // Use quaternion to simulate the camera rotation
             // It was noticed that the camera object does not change its quaternion value after the render process.
             // With that in mind, the simulation is done by rotating the camera to the given center of the viewport
@@ -413,7 +405,6 @@ app.controller('HomeController', function($scope) {
             const quaternion_x = new THREE.Quaternion();
             const quaternion_y = new THREE.Quaternion();
     
-            // console.log("cvp_x_radians ", cvp_x_radians, "cvp_y_radians ", cvp_y_radians)
             // Multiply by -1 because the quaternion rotation reference is the oposite from the one received from the update_center_viewport() function
             quaternion_x.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), -1*cvp_x_radians );
     
@@ -448,7 +439,6 @@ app.controller('HomeController', function($scope) {
                             visibleObjects[face] = numberTruncaded;
                     }
             }
-            // console.log("PREDICTED: ", visibleObjects);
             
             }
             return visibleObjects;
@@ -595,7 +585,6 @@ app.controller('HomeController', function($scope) {
                   });
               }
               if ($scope.contents.edits){
-                console.log("TEM EDIÇÃO PELO SERVIDOR!!")
                 console.log ($scope.contents.edits);
               }
               document.getElementById('Link').style = "display: none;";
@@ -683,8 +672,8 @@ app.controller('HomeController', function($scope) {
               if ($scope.contents.audio && $scope.contents.audio != "" && $scope.buffer_empty_flag[$scope.playerCount] == true) {
                   return;
               }
-  
-              if ($scope.player_ready == 6){
+            console.log("$scope.player_ready: ", $scope.player_ready);
+              if ($scope.player_ready >= 6){
                   $scope.play_all();
               }
    
@@ -692,16 +681,10 @@ app.controller('HomeController', function($scope) {
       }
   
       function can_play_event (e) {
-          //consol.log(e);
-          //consol.log("CAN PLAY PLAYER");
-          //consol.log($scope.player_ready++);
           $scope.player_ready++
-          if ($scope.player_ready == 6){
-              //consol.log("START ALL PLAYERS")
+          if ($scope.player_ready >= 6){
               console.log("PLAY")
               $scope.play_all();
-  
-              //consol.log(e);
               //AUTO-PLAY
               if($scope.auto_play_vr)
               {
@@ -884,7 +867,7 @@ app.controller('HomeController', function($scope) {
   
                       $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["CAN_PLAY"], can_play_event);
                       $scope.players[$scope.playerCount].on(dashjs.MediaPlayer.events["PLAYBACK_ENDED"], download_csv);
-  
+
                       // Initializing
                       $scope.players[$scope.playerCount].initialize(video, url, false);
                       $scope.playerBufferLength[$scope.playerCount] = $scope.players[$scope.playerCount].getBufferLength();
@@ -976,24 +959,49 @@ app.controller('HomeController', function($scope) {
         let numPlayer = $scope.players.length;
         let stringListQuality = "[";
         //Gets only de videos, not the audio
-        for (let i = 0 ; i < numPlayer - 1; i++){
+        let predicted_visible_faces = $scope.get_visible_faces($scope.yaw, $scope.pitch);
+        for (let i = 0 ; i < numPlayer - 1; i++)
             stringListQuality += $scope.players[i].getQualityFor('video') + ";";
-        }
+        
         stringListQuality = stringListQuality.slice(0,stringListQuality.length - 1);
         stringListQuality += "]"
+
+        visibleFaces = "["
+        percentageVisibleFaces = "["
+        for (face in predicted_visible_faces){
+            visibleFaces += face.slice(-1) + ";";
+            percentageVisibleFaces += predicted_visible_faces[face] + ";";
+        }
+
+        visibleFaces = visibleFaces.slice(0,visibleFaces.length - 1);
+        visibleFaces += "]";
+
+        
+        percentageVisibleFaces = percentageVisibleFaces.slice(0,percentageVisibleFaces.length - 1);
+        percentageVisibleFaces += "]";
+
         let frame_data = {
             frame: $scope.frameNumber != 0 ? $scope.frameNumber.get() : 0,
             totalThroughput: $scope.totalThroughput,
             listQuality: stringListQuality,
+            visibleFaces: visibleFaces,
+            percentageVisibleFaces: percentageVisibleFaces,
             yaw: Number.parseFloat($scope.yaw).toFixed(4),
             pitch: Number.parseFloat($scope.pitch).toFixed(4),
             hasEditScheduled: $scope.hasEditScheduledValue,
             editHappened: $scope.editHappenedValue,
-            radiansRotation: $scope.radiansRotationValue,
+            radiansRotation:  Number.parseFloat($scope.radiansRotationValue).toFixed(4),
             editType: $scope.editTypeValue
         }
 
         $scope.json_output.push(frame_data);
+
+        if ( $scope.editTypeValue === "instant"){
+             $scope.editTypeValue = "null";
+             $scope.radiansRotationValue = 0;
+             $scope.hasEditScheduledValue = false;
+             $scope.editHappenedValue = false;
+        }
 
         requestAnimationFrame(updateOutputFile);
       }

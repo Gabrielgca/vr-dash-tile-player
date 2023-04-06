@@ -5,7 +5,7 @@ const GRADUAL_EDIT = "gradual";
 
 const EDIT_TIME = 1.5; //time in seconds that the edit will take
 const FADE_TIME = EDIT_TIME/2; //time in seconds after edit started to start the fade animation
-const ROTATION_SPEED = 0.005; //radians per frame (60 frames per second on web)
+const ROTATION_SPEED = 0.002; //radians per frame (60 frames per second on web)
 const OPACITY_THRESHOLD = 0.95; // opacity that will start the snapcut on the fade rotation edit
 const ENABLE_EDIT = true;
 
@@ -18,6 +18,7 @@ var doFade = true;
 var enableRotation = true;
 var enableFade = true;
 var fadeStarted = false;
+var fadePaused = false;
 var isSnapCutEnabled = true;
 var dist_nearest_roi_gradual;
 var direction;
@@ -39,26 +40,15 @@ function dynamicEditClass () {
         $scope.frameNumber = camera_reference.videoFrames["video_0"];
         $scope.videoFrameRate = camera_reference.videoFrames["video_0"]["frameRate"];
     }
-    
-    if (ENABLE_EDIT){
-    
+
+    let isVideoRunning = $scope.buffer_empty_flag.filter(empty => empty == true).length > 0 ? false : true;
+
+    if (ENABLE_EDIT && isVideoRunning){
     
         var currentFrame = $scope.frameNumber.get();
-        // console.log("🚀 ~ file: dynamicEdit.js:46 ~ dynamicEditClass ~ currentFrame", currentFrame)
-        var currentTime = $scope.normalizedTime;
         var frameRate = $scope.videoFrameRate;
-        var normCurrentTime = Math.ceil(currentTime);
-        ////console.log("FROM DYNAMIC EDIT")
-        let CvpDegree = sphere_reference["head_movement_degree"];
-        let CvpRadians = sphere_reference["head_movement_radians"];
 
-        // let CvpRadians = $scope.predict_center_viewport(frameRate);
-        
-        
-        let hasEditScheduledValue = false;
-        let editHappenedValue = false;
-        let radiansRotationValue = 0;
-        let editTypeValue = "null";
+        let CvpRadians = sphere_reference["head_movement_radians"];
         
         if (CvpRadians != undefined){
 
@@ -67,25 +57,22 @@ function dynamicEditClass () {
             CvpXRadians = CvpRadians[0];
             $scope.yaw = CvpRadians[0];
             CvpYRadians = CvpRadians[1];
-            $scope.pitch = CvpRadians[1];
-            
-            // console.log("🚀 ~ file: dynamicEdit.js:60 ~ dynamicEditClass ~ CvpXRadians", CvpXRadians);
-            // console.log("🚀 ~ file: dynamicEdit.js:62 ~ dynamicEditClass ~ CvpYRadians", CvpYRadians);
-            
+            $scope.pitch = CvpRadians[1];     
     
             let sphereOpacity = sphere_reference.object3DMap.mesh.material.opacity;
-            
-            ////console.log(CvpRadians);
+
             //Fade Effect Showcase
             if (editEditInfoJSON[next_edit] && editEditInfoJSON[next_edit]["type"] == GRADUAL_EDIT){
+
+                if (fadeStarted && fadePaused){
+                    console.log("RESUME")
+                    sphere_reference.emit('resumeFadeEffect');
+                    fadePaused = false;
+                }
                 
                 let currentFrameEdit = editEditInfoJSON[next_edit] ? editEditInfoJSON[next_edit]["frame"] : 0;
                 let frameStartGradualRotation = Math.ceil(currentFrameEdit - (EDIT_TIME * 2 * frameRate));
                 let frameStopGradualRotation = Math.ceil(currentFrameEdit + (EDIT_TIME * 0.5 * frameRate));
-                // console.log("🚀 ~ file: dynamicEdit.js:79 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
-                // console.log("🚀 ~ file: dynamicEdit.js:80 ~ dynamicEditClass ~ frameStartGradualRotation", frameStartGradualRotation)
-                // console.log("🚀 ~ file: dynamicEdit.js:81 ~ dynamicEditClass ~ frameStopGradualRotation", frameStopGradualRotation)
-                
                 let frameStartFade = Math.ceil(frameStopGradualRotation - ((EDIT_TIME + FADE_TIME)* 2 * frameRate));
                 
                 if (currentFrame >= frameStartGradualRotation  && enableRotation ){
@@ -111,12 +98,11 @@ function dynamicEditClass () {
     
                 if (currentFrame >= frameStartFade && enableFade && isRotating){
                     console.log("START FADE");
-                    sphere_reference.emit('fadeEffect');
+                    sphere_reference.emit('startFadeEffect');
                     enableFade = false;
                     fadeStarted = true;
                 }
 
-                //console.log(sphereOpacity, doIt);
                 if (sphereOpacity >= OPACITY_THRESHOLD && fadeStarted && doIt){
                     console.log("START SNAPCUT");
                     doIt = false;
@@ -147,7 +133,6 @@ function dynamicEditClass () {
 
                     if (direction > 0)
                     {
-                        //console.log("positive")
                         quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ), ROTATION_SPEED );
                         camera_reference.object3D.quaternion.multiply(quaternion);
                         sphere_reference.object3D.quaternion.multiply(quaternion);
@@ -161,11 +146,8 @@ function dynamicEditClass () {
                                 
                             }
                         }
-                        // camera_reference.object3D.rotation.y += ROTATION_SPEED;
-                        // sphere_reference.object3D.rotation.y += ROTATION_SPEED;
                     }
                     else {
-                        //console.log("negative")
                         quaternion.setFromAxisAngle( new THREE.Vector3( 0, 1, 0 ),-1*ROTATION_SPEED );
                         camera_reference.object3D.quaternion.multiply(quaternion);
                         sphere_reference.object3D.quaternion.multiply(quaternion);
@@ -179,8 +161,6 @@ function dynamicEditClass () {
                                 
                             }
                         }
-                        // camera_reference.object3D.rotation.y -= ROTATION_SPEED;
-                        // sphere_reference.object3D.rotation.y -= ROTATION_SPEED;
                     }
     
                 }
@@ -211,8 +191,6 @@ function dynamicEditClass () {
                 
                 if (currentFrame >= currentFrameEdit && last_frame_with_edit != currentFrame ){
                     console.log("START INSTANT SNAPCUT");
-                    console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrameEdit", currentFrameEdit)
-                    console.log("🚀 ~ file: dynamicEdit.js:182 ~ dynamicEditClass ~ currentFrame", currentFrame)
                     $scope.editTypeValue = INSTANT_EDIT;
                     $scope.hasEditScheduledValue = true;
 
@@ -225,24 +203,14 @@ function dynamicEditClass () {
                     next_edit++;
                 }
             }
-
-            // let frame_data = {
-            //     frame: Math.ceil(currentFrame),
-            //     yaw: Number.parseFloat(CvpRadians[0]).toFixed(4),
-            //     pitch: Number.parseFloat(CvpRadians[1]).toFixed(4),
-            //     hasEditScheduled: hasEditScheduledValue,
-            //     editHappened: editHappenedValue,
-            //     radiansRotation: radiansRotationValue,
-            //     editType: editTypeValue
-            // }
-            
-            // $scope.json_output.push(frame_data);
         }
-
-
-
-        //face_4.object3D.translateY(0.01);
     }
+    else if (fadeStarted && !isVideoRunning){
+        console.log("PAUSE")
+        fadePaused = true;
+        sphere_reference.emit('pauseFadeEffect');
+    }
+    console.log("fadeStarted:", fadeStarted)
     requestAnimationFrame(dynamicEditClass);
 }
 
@@ -276,8 +244,6 @@ function fireRotation (roi_radians)
         console.log("AFTER camera_reference.faceStructure", camera_reference.faceStructure);
         camera_reference.object3D.quaternion.multiply(quaternion);
         sphere_reference.object3D.quaternion.multiply(quaternion);
-        // camera_reference.object3D.rotation.y += roi_radians;
-        // sphere_reference.object3D.rotation.y += roi_radians;
     }
 
 
@@ -294,7 +260,6 @@ function handleSnapCut(CvpXRadians)
         fireRotation(dist_nearest_roi);
     }
     else {
-        //console.log("Distance lower than 30°")
         doIt = false;
     }
 
@@ -313,8 +278,7 @@ function getNearestRegionOfInterest(CvpXRadians)
         let ROIXRadians = convert_normalized_to_radians(editEditInfoJSON[next_edit]["region_of_interest"][i]["ROI_theta"]);
         
         let CvpXOpositeRadians = CvpXRadians > 0 ? CvpXRadians - Math.PI : CvpXRadians + Math.PI;
-        // let getRotationDirecition = CvpXRadians > 0 ? getRotationDirecitionByNegativeCvp() : getRotationDirecitionByPositiveCvp();
-        
+
         let curr_dist_roi = getSphereRotation(CvpXRadians, CvpXOpositeRadians, ROIXRadians);
         
         if (Math.abs(curr_dist_roi) < abs_dist_nearest_roi){
@@ -323,54 +287,43 @@ function getNearestRegionOfInterest(CvpXRadians)
             dist_nearest_roi = curr_dist_roi;
 
         }
-
     }
-    // //console.log("dist_nearest_roi " + dist_nearest_roi)
+
     return [abs_dist_nearest_roi, dist_nearest_roi, index_dist_nearest_roi]
 }
 
 function getSphereRotation(CvpXRadians, CvpXOpositeRadians, ROIXRadians)
 {
-    // //console.log("ROIXRadians " + ROIXRadians);
-    // //console.log("CvpXOpositeRadians " + CvpXOpositeRadians);
-    // //console.log("CvpXRadians " + CvpXRadians);
     if ((CvpXRadians > 0 && ROIXRadians > 0) || (CvpXRadians < 0 && ROIXRadians < 0))
     {
-        // //console.log("CvpXRadians and ROIXRadians in the same quadrant")
         return ROIXRadians - CvpXRadians;
     }
     
     if (CvpXOpositeRadians > 0)
     {
-
         // CvpXRadians is negative and ROIXRadians is positive
         if (CvpXOpositeRadians < ROIXRadians)
         {
             //Rotates to the left
-            // //console.log("CvpXRadians is negative and ROIXRadians is positive Rotates to the left")
             return -1*((Math.PI + CvpXRadians) + (Math.PI - ROIXRadians));
         }
         else
         {
             //Rotates to the right
-            // //console.log("CvpXRadians is negative and ROIXRadians is positive Rotates to the right")
             return ROIXRadians - CvpXRadians;
         }
     }
     else
     {
         // CvpXRadians is positive and ROIXRadians is negative
-        
         if (CvpXOpositeRadians < ROIXRadians)
         {
             //Rotates to the left
-            // //console.log("CvpXRadians is positive and ROIXRadians is negative Rotates to the left")
             return -1*(CvpXRadians - ROIXRadians);
         }
         else
         {
             //Rotates to the right
-            // //console.log("CvpXRadians is positive and ROIXRadians is negative Rotates to the right")
             return (Math.PI - CvpXRadians) + (Math.PI + ROIXRadians);
         }
         

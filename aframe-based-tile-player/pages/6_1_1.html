@@ -109,7 +109,7 @@
 			</a-assets>
 
 			
-			<a-sky id="sky-sphere" color="#000000" radius="200" opacity= "0" rotation="0 -90 0" animation="property: opacity; from: 0; to:1; loop: 2; dir: alternate; dur:2000; startEvents: fadeEffect"></a-sky>
+			<a-sky id="sky-sphere" color="#000000" radius="200" opacity= "0" rotation="0 -90 0" animation="property: opacity; from: 0; to:1; loop: 2; dir: alternate; dur:2000; startEvents: startFadeEffect;  pauseEvents: pauseFadeEffect; resumeEvents: resumeFadeEffect;"></a-sky>
 
 			<a-entity id="video_camera"
 					  position="0 1.6 0"
@@ -117,54 +117,55 @@
 					  visible="true">
 
 					  
-				<a-entity id="ent_video_0"
-						material=" shader: flat; src: #video_0"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="240 0 0"
-						rotation="0 -90 0"
-						visible="true">
-				</a-entity>
-				<a-entity id="ent_video_1"
-						material="shader: flat; src: #video_1"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="-240 0 0"
-						rotation="0 90 0"
-						visible="true">
-				</a-entity>
-				<a-entity id="ent_video_2"
-						material="shader: flat; src: #video_2"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="0 240 0"
-						rotation="90 0 0"
-						visible="true">
-				</a-entity>
-				<a-entity id="ent_video_3"
-						material="shader: flat; src: #video_3"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="0 -240 0"
-						rotation="-90 0 0"
-						visible="true">
-				</a-entity>
-				<a-entity id="ent_video_4"
-						material="shader: flat; src: #video_4"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="0 0 -240"
-						rotation="0 0 0"
-						visible="true">
-				</a-entity>
-				<a-entity id="ent_video_5"
-						material="shader: flat; src: #video_5"
-						geometry="primitive: plane; width: 480; height: 480;"
-						position="0 0 240"
-						rotation="0 180 0"
-						visible="true">
-				</a-entity>
-	<!-- 	 			<a-entity material="shader: flat; src: #audio"
-							geometry="primitive: plane; width: 1; height: 1;"
-							position="0 0 0"
-							rotation="0 0 0"
-							visible="true">
-					</a-entity> -->
+			   <a-entity id="ent_video_0"
+					  material=" shader: flat; src: #video_0"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="240 0 0"
+					  rotation="0 -90 0"
+					  visible="true">
+			  </a-entity>
+			  <a-entity id="ent_video_1"
+					  material="shader: flat; src: #video_1"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="-240 0 0"
+					  rotation="0 90 0"
+					  visible="true">
+			  </a-entity>
+			  <a-entity id="ent_video_2"
+					  material="shader: flat; src: #video_2"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="0 240 0"
+					  rotation="90 0 0"
+					  visible="true">
+			  </a-entity>
+			  <a-entity id="ent_video_3"
+					  material="shader: flat; src: #video_3"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="0 -240 0"
+					  rotation="-90 0 0"
+					  visible="true">
+			  </a-entity>
+			  <a-entity id="ent_video_4"
+					  material="shader: flat; src: #video_4"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="0 0 -240"
+					  rotation="0 0 0"
+					  visible="true">
+			  </a-entity>
+			  <a-entity id="ent_video_5"
+					  material="shader: flat; src: #video_5"
+					  geometry="primitive: plane; width: 480; height: 480;"
+					  position="0 0 240"
+					  rotation="0 180 0"
+					  visible="true">
+			  </a-entity>
+
+<!-- 	 			<a-entity material="shader: flat; src: #audio"
+					  geometry="primitive: plane; width: 1; height: 1;"
+					  position="0 0 0"
+					  rotation="0 0 0"
+					  visible="true">
+			  </a-entity> -->
 
 			</a-entity>
 			
