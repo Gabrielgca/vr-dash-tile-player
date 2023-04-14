@@ -1,6 +1,6 @@
 #!/bin/bash -e
 ############################################################
-# VR-DASH-TILE-PLAYER PRE-PROCESSING                       #
+# 360 EDITION-AWARE VIDEO PLAYER PRE-PROCESSING            #
 ############################################################
 
 opts=$(getopt \
@@ -13,7 +13,7 @@ opts=$(getopt \
 ############################################################
 Help()
 {
-   echo "This script pre-process the video so that it can be played on the VR-DASH-TILE-PLAYER"
+   echo "This script do the pre-process required to use the video into the 360 EDITION-AWARE VIDEO PLAYER"
    echo
    echo "Syntax: $0 [<ARGS>] "
    echo
@@ -31,7 +31,7 @@ Help()
 set +H
 #set -e
 
-echo "[INFO] VR-DASH-TILE-PLAYER PRE-PROCESSING : Execution Started"
+echo "[INFO] 360 EDITION-AWARE VIDEO PLAYER PRE-PROCESSING : Execution Started"
 
 scriptDir="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 resultDir="results/"
@@ -49,7 +49,7 @@ while true; do
 done
 
 ############################################################
-# CONVERT EQUIRECTANGULAR TO CUBE MAPPING PROJECTION        #
+# CONVERT EQUIRETANGULAR TO CUBE MAPPING PROJECTION        #
 ############################################################
 echo "[INFO] Converting Equirectangular Projection to Cube Mapping Projection"
 ffmpeg -i $paramI -vf v360=e:c3x2:cubic:w=$paramW:h=$paramH:out_pad=0 -c:v libvpx-vp9 -crf 0 -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an CMP_$paramI
@@ -94,6 +94,14 @@ do
     
     echo "[DONE] Transcoding the face $i into bitrate with CRF $crfValue!"
     done
+
+    echo "[INFO] Transcoding the face $i into bitrate with high CRF..."
+
+    crfValue="63"
+    outputName="face$i/face${i}_$crfValue.mp4"
+    ffmpeg -i face$i/face$i.mp4 -c:v libvpx-vp9 -crf $crfValue -b:v 0 -keyint_min 30 -g 30 -sc_threshold 0 -an $outputName
+    
+    echo "[DONE] Transcoding the face $i into bitrate with CRF $crfValue!"
     # 
 done
 
@@ -101,7 +109,7 @@ done
 # CONVERT VIDEO INTO FRAGMENT FORMAT                       #
 ############################################################
 
-for ((i=0;i<6;i++));
+for ((i=0;i<=5;i++));
 do
     for ((crfValue=0;crfValue<=60;crfValue+=20));
     do
@@ -113,21 +121,20 @@ do
     
     echo "[DONE] Convert the face $i and CRF $crfValue into fragment!"
     done
-
+    
     echo "[INFO] Creating fragment with a high CRF to be the lowest quality of the unvisible faces"
     
-    crfValue="120"
+    crfValue="63"
     inputName="face$i/face${i}_$crfValue.mp4"
     outputName="face$i/f_face${i}_$crfValue.mp4"
     mp4fragment --fragment-duration 1000 $inputName $outputName
     
     echo "[DONE] Creating fragment with a high CRF to be the lowest quality of the unvisible face!"
-    # 
 done
 
-############################################################
-# CONVERT INTO DASH SEGMENTS                               #
-############################################################
+###########################################################
+#CONVERT INTO DASH SEGMENTS                               #
+###########################################################
 for ((i=0;i<=5;i++));
 do
     echo "[INFO] Convert the face $i into dash segment..."

@@ -34,7 +34,7 @@ function dynamicEditClass () {
     
     var appElement = document.querySelector('[ng-controller=DashController]');
     var $scope = angular.element(appElement).scope();
-    editEditInfoJSON = $scope.contents.edits.edit;
+    editEditInfoJSON = $scope.contents.edits && $scope.contents.edits.edit;
     
     if ( $scope.frameNumber == 0) {
         $scope.frameNumber = camera_reference.videoFrames["video_0"];
@@ -43,7 +43,7 @@ function dynamicEditClass () {
 
     let isVideoRunning = $scope.buffer_empty_flag.filter(empty => empty == true).length > 0 ? false : true;
 
-    if (ENABLE_EDIT && isVideoRunning){
+    if (ENABLE_EDIT && isVideoRunning && editEditInfoJSON){
     
         var currentFrame = $scope.frameNumber.get();
         var frameRate = $scope.videoFrameRate;
